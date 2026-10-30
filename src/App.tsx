@@ -101,7 +101,15 @@ function HackWatchApp() {
   const [liveUsers, setLiveUsers] = useState(440);
   const [userBump, setUserBump] = useState(false);
   const howRef = useRef<HTMLDetailsElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
   const tick = useTick(1000);
+
+  // Auto-scroll active tab into view in mobile tabbar
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [tab]);
 
   // Live active user counter fluctuation starting from 440
   useEffect(() => {
@@ -469,9 +477,16 @@ function HackWatchApp() {
 
         <nav className="tabbar" aria-label="Sections">
           {visibleTabs.map((tItem) => (
-            <button key={tItem.id} type="button" className={tab === tItem.id ? "on" : ""} aria-current={tab === tItem.id ? "page" : undefined} onClick={() => navigate(tItem.id)}>
+            <button
+              key={tItem.id}
+              ref={tab === tItem.id ? activeTabRef : undefined}
+              type="button"
+              className={tab === tItem.id ? "on" : ""}
+              aria-current={tab === tItem.id ? "page" : undefined}
+              onClick={() => navigate(tItem.id)}
+            >
               <Icon id={tItem.id} />
-              {t(`nav_${tItem.id}`, tItem.short)}
+              <span>{t(`nav_${tItem.id}`, tItem.short)}</span>
             </button>
           ))}
         </nav>

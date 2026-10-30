@@ -784,6 +784,9 @@ export default function EtherscanFlow({
         />
 
         <div className="flow-pipeline-container">
+          <div className="mobile-swipe-cue" aria-hidden="true">
+            <span>⇄ Swipe horizontally to explore all 4 pipeline stages</span>
+          </div>
           <div className="flow-stages-grid">
             {stages.map((stg) => {
               const stageNodes = filteredNodes.filter((n) => n.stage === stg.id);
@@ -994,13 +997,13 @@ export default function EtherscanFlow({
             <thead>
               <tr>
                 <th>Hop ID</th>
-                <th>When (UTC)</th>
+                <th className="hide-s">When (UTC)</th>
                 <th>From (Source)</th>
                 <th>To (Destination)</th>
                 <th>Token</th>
-                <th className="num">Amount</th>
+                <th className="num hide-s">Amount</th>
                 <th className="num">USD Value</th>
-                <th>Contract Method</th>
+                <th className="hide-m">Contract Method</th>
                 <th className="num">Tx Hash</th>
               </tr>
             </thead>
@@ -1019,7 +1022,7 @@ export default function EtherscanFlow({
                     <td className="mono" style={{ fontWeight: 700, color: "var(--accent)" }}>
                       #{idx + 1}
                     </td>
-                    <td className="mono dim" style={{ fontSize: 11 }}>
+                    <td className="mono dim hide-s" style={{ fontSize: 11 }}>
                       {e.ts}
                     </td>
                     <td>
@@ -1039,11 +1042,11 @@ export default function EtherscanFlow({
                         {e.token}
                       </span>
                     </td>
-                    <td className="num mono">{amount(e.amount)}</td>
+                    <td className="num mono hide-s">{amount(e.amount)}</td>
                     <td className="num mono" style={{ fontWeight: 700, color: "var(--text)" }}>
                       {usd(e.usdVal)}
                     </td>
-                    <td>
+                    <td className="hide-m">
                       <span className="method-badge" title={e.method}>
                         {e.method}
                       </span>

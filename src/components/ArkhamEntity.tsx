@@ -397,11 +397,11 @@ export default function ArkhamEntity({
               <thead>
                 <tr>
                   <th>Asset</th>
-                  <th>Network</th>
-                  <th className="num">Price (USD)</th>
-                  <th className="num">Balance</th>
+                  <th className="hide-s">Network</th>
+                  <th className="num hide-m">Price (USD)</th>
+                  <th className="num hide-s">Balance</th>
                   <th className="num">Value (USD)</th>
-                  <th style={{ width: 140 }}>Portfolio Share</th>
+                  <th className="hide-m" style={{ width: 140 }}>Portfolio Share</th>
                   <th>Status / Restrictions</th>
                 </tr>
               </thead>
@@ -418,19 +418,19 @@ export default function ArkhamEntity({
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td className="hide-s">
                       <span className="dim" style={{ fontSize: 11.5 }}>{token.chain}</span>
                     </td>
-                    <td className="num mono">
+                    <td className="num mono hide-m">
                       ${token.price < 0.01 ? token.price.toFixed(8) : token.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}
                     </td>
-                    <td className="num mono">
+                    <td className="num mono hide-s">
                       {amount(token.balance)}
                     </td>
                     <td className="num mono" style={{ fontWeight: 700, color: "var(--text)" }}>
                       {usd(token.usdVal)}
                     </td>
-                    <td>
+                    <td className="hide-m">
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div className="bar" style={{ flex: 1, minWidth: 60, height: 6 }}>
                           <i style={{ width: `${Math.max(2, token.share)}%` }} />
@@ -471,7 +471,7 @@ export default function ArkhamEntity({
             sub="Arkham clustering tracks where stolen funds came from and the primary venues, decentralized exchanges, and protocols used to liquidate or bridge them."
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 20, marginTop: 16 }}>
+          <div className="arkham-counterparties-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 16, marginTop: 16 }}>
             {/* INFLOWS */}
             <div className="arkham-box">
               <div className="arkham-box-head">
@@ -646,6 +646,9 @@ export default function ArkhamEntity({
           />
 
           <div className="arkham-visualizer-container">
+            <div className="mobile-swipe-cue" aria-hidden="true">
+              <span>⇄ Swipe horizontally to explore cluster map</span>
+            </div>
             <div className="arkham-flow-grid">
               {/* STAGE 1 */}
               <div className="flow-step">

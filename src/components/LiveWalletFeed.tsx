@@ -246,6 +246,7 @@ export default function LiveWalletFeed({
 
       {/* Target Address Switcher Pills */}
       <div
+        className="feed-target-switcher"
         style={{
           display: "flex",
           gap: 6,
@@ -253,6 +254,7 @@ export default function LiveWalletFeed({
           paddingBottom: 8,
           marginTop: 14,
           alignItems: "center",
+          WebkitOverflowScrolling: "touch",
         }}
       >
         {entitiesList.map((ent) => {
@@ -347,6 +349,7 @@ export default function LiveWalletFeed({
               <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fd69c" }} />
             </div>
             <div
+              className="feed-address-row"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -355,9 +358,12 @@ export default function LiveWalletFeed({
                 fontFamily: "var(--mono)",
                 fontSize: 12,
                 color: "var(--mute)",
+                flexWrap: "wrap",
+                wordBreak: "break-all",
               }}
             >
-              <span>{activeEntity.address}</span>
+              <span className="feed-addr-full">{activeEntity.address}</span>
+              <span className="feed-addr-short">{shortAddr(activeEntity.address, 10, 6)}</span>
               <button
                 type="button"
                 className="btn ghost"
