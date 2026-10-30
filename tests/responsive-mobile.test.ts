@@ -31,3 +31,4 @@ describe("Mobile Responsiveness & Multi-Device Optimization", () => {
     expect(css).toContain(".mobile-swipe-cue");
   });
 });
+
