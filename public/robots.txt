@@ -6,3 +6,4 @@ Allow: /
 
 # Canonical XML Sitemap
 Sitemap: https://hackwatch.hackwatch.workers.dev/sitemap.xml
+
