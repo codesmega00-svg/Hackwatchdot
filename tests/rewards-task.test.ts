@@ -21,38 +21,43 @@ describe("Page 12: Follow All Tasks & Claim $5,000 Reward Desk", () => {
     expect(appTsx).toContain('import RewardsTask from "./components/RewardsTask";');
   });
 
-  it("includes all 7 required tasks with target links and Twitter intents", () => {
+  it("includes all 8 required tasks with target links, Telegram subscription, and Twitter intents", () => {
     const targetUrl = "https://x.com/Hackwatchdot/status/2116403772956225967";
     const targetTweetId = "2116403772956225967";
+    const telegramUrl = "https://t.me/hackwatchdot";
 
-    // Task 1: Follow
+    // Task 1: Follow on X
     expect(rewardsTsx).toContain("Task 1: Follow @Hackwatchdot on X");
     expect(rewardsTsx).toContain("https://x.com/Hackwatchdot");
     expect(rewardsTsx).toContain("https://x.com/intent/follow?screen_name=Hackwatchdot");
 
-    // Task 2: Like
-    expect(rewardsTsx).toContain("Task 2: Like the Main Investigation Post");
+    // Task 2: Subscribe Telegram
+    expect(rewardsTsx).toContain("Task 2: Subscribe Telegram Channel");
+    expect(rewardsTsx).toContain(telegramUrl);
+
+    // Task 3: Like
+    expect(rewardsTsx).toContain("Task 3: Like the Main Investigation Post");
     expect(rewardsTsx).toContain("tweet_id=");
     expect(rewardsTsx).toContain(targetTweetId);
     expect(rewardsTsx).toContain(targetUrl);
 
-    // Task 3: Comment
-    expect(rewardsTsx).toContain("Task 3: Comment on the Investigation Post");
+    // Task 4: Comment
+    expect(rewardsTsx).toContain("Task 4: Comment on the Investigation Post");
     expect(rewardsTsx).toContain("in_reply_to=");
 
-    // Task 4: Repost
-    expect(rewardsTsx).toContain("Task 4: Repost (Retweet) the Post");
+    // Task 5: Repost
+    expect(rewardsTsx).toContain("Task 5: Repost (Retweet) the Post");
     expect(rewardsTsx).toContain("intent/retweet?tweet_id=");
 
-    // Task 5: Share
-    expect(rewardsTsx).toContain("Task 5: Share the Post");
+    // Task 6: Share
+    expect(rewardsTsx).toContain("Task 6: Share the Post");
     expect(rewardsTsx).toContain("t.me/share/url");
 
-    // Task 6: Tag 2 Friends
-    expect(rewardsTsx).toContain("Task 6: Tag 2 Friends on the Post");
+    // Task 7: Tag 2 Friends
+    expect(rewardsTsx).toContain("Task 7: Tag 2 Friends on the Post");
 
-    // Task 7: Submit ERC-20 Wallet
-    expect(rewardsTsx).toContain("Task 7: Submit Your ERC-20 / ETH Wallet Address");
+    // Task 8: Submit ERC-20 Wallet
+    expect(rewardsTsx).toContain("Task 8: Submit Your ERC-20 / ETH Wallet Address");
     expect(rewardsTsx).toContain("erc-wallet-input");
   });
 

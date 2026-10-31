@@ -133,10 +133,10 @@ export default function RewardsTask() {
       return;
     }
 
-    // Check if tasks 1-6 are completed
-    const tasksDoneCount = [1, 2, 3, 4, 5, 6].filter((id) => completedTasks[id]).length;
-    if (tasksDoneCount < 6) {
-      toast(`Please complete tasks 1 to 6 before claiming (Current: ${tasksDoneCount}/6)`);
+    // Check if tasks 1-7 are completed
+    const tasksDoneCount = [1, 2, 3, 4, 5, 6, 7].filter((id) => completedTasks[id]).length;
+    if (tasksDoneCount < 7) {
+      toast(`Please complete tasks 1 to 7 before claiming (Current: ${tasksDoneCount}/7)`);
       return;
     }
 
@@ -150,7 +150,7 @@ export default function RewardsTask() {
     };
 
     setSubmission(newSub);
-    setCompletedTasks((prev) => ({ ...prev, 7: true }));
+    setCompletedTasks((prev) => ({ ...prev, 8: true }));
     setShowConfetti(true);
     toast("🎉 $5,000 Bounty Entry confirmed! Verified ticket issued.");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -159,23 +159,23 @@ export default function RewardsTask() {
   const handleResetSubmission = () => {
     if (window.confirm("Do you want to re-submit your ERC-20 wallet or update your details?")) {
       setSubmission(null);
-      setCompletedTasks((prev) => ({ ...prev, 7: false }));
+      setCompletedTasks((prev) => ({ ...prev, 8: false }));
       toast("Ready to enter updated wallet address.");
     }
   };
 
   const completedCount = useMemo(() => {
-    let count = [1, 2, 3, 4, 5, 6].filter((id) => completedTasks[id]).length;
+    let count = [1, 2, 3, 4, 5, 6, 7].filter((id) => completedTasks[id]).length;
     if (submission) count += 1;
     return count;
   }, [completedTasks, submission]);
 
-  const progressPercent = Math.round((completedCount / 7) * 100);
+  const progressPercent = Math.round((completedCount / 8) * 100);
 
   // Social Share proof text
   const shareProofOnX = () => {
     if (!submission) return;
-    const tweetText = `🎉 I just completed all 7 tasks on @Hackwatchdot and claimed my verified Entry Ticket #${submission.ticketId} for the $5,000 Binance Hack Community Bounty!\n\nLive onchain tracking of $6.3B breach:\n`;
+    const tweetText = `🎉 I just completed all 8 tasks on @Hackwatchdot and claimed my verified Entry Ticket #${submission.ticketId} for the $5,000 Binance Hack Community Bounty!\n\nLive onchain tracking of $6.3B breach:\n`;
     const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(TARGET_POST_URL)}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
     toast("Opening X to share your bounty ticket...");
@@ -218,9 +218,9 @@ export default function RewardsTask() {
           <div className="rewards-kpi-tile">
             <span className="rewards-kpi-lbl">TASKS REQUIRED</span>
             <span className="rewards-kpi-val" style={{ color: "#0ea5e9" }}>
-              7 Tasks
+              8 Tasks
             </span>
-            <span className="rewards-kpi-sub">Follow, Like, Repost & Wallet</span>
+            <span className="rewards-kpi-sub">Follow, Telegram, Like & Wallet</span>
           </div>
 
           <div className="rewards-kpi-tile">
@@ -244,10 +244,10 @@ export default function RewardsTask() {
         <div className="rewards-progress-card">
           <div className="rewards-progress-header">
             <span className="progress-label">
-              Bounty Verification Progress: <b>{completedCount} of 7 Tasks Completed</b> ({progressPercent}%)
+              Bounty Verification Progress: <b>{completedCount} of 8 Tasks Completed</b> ({progressPercent}%)
             </span>
-            <span className={`progress-badge ${completedCount === 7 ? "completed" : "pending"}`}>
-              {completedCount === 7 ? "✅ Verified & Ready" : `⚡ ${7 - completedCount} Tasks Remaining`}
+            <span className={`progress-badge ${completedCount === 8 ? "completed" : "pending"}`}>
+              {completedCount === 8 ? "✅ Verified & Ready" : `⚡ ${8 - completedCount} Tasks Remaining`}
             </span>
           </div>
           <div className="rewards-progress-bar">
@@ -256,12 +256,12 @@ export default function RewardsTask() {
         </div>
       </div>
 
-      {/* Verified Claim Ticket Confirmation Banner (Shows when task 7 submitted) */}
+      {/* Verified Claim Ticket Confirmation Banner (Shows when task 8 submitted) */}
       {submission ? (
         <div className="bounty-ticket-card">
           {showConfetti ? (
             <div className="confetti-celebration-banner" role="status">
-              <span>🎊 Congratulations! All 7 Tasks Completed & Verified. Entry #{submission.ticketId} Recorded!</span>
+              <span>🎊 Congratulations! All 8 Tasks Completed & Verified. Entry #{submission.ticketId} Recorded!</span>
               <button
                 type="button"
                 className="close-confetti-btn"
@@ -302,8 +302,8 @@ export default function RewardsTask() {
             </div>
 
             <p className="ticket-note">
-              ✨ <b>Congratulations!</b> You have completed all 7 tasks and secured your entry. Winners will be announced on{" "}
-              <b>@Hackwatchdot</b> and bounty prizes will be distributed directly to your registered ERC-20 address.
+              ✨ <b>Congratulations!</b> You have completed all 8 tasks and secured your entry. Winners will be announced on{" "}
+              <b>@Hackwatchdot</b> and in our <b>Telegram channel</b>, with bounty prizes distributed directly to your registered ERC-20 address.
             </p>
 
             <div className="ticket-actions">
@@ -333,13 +333,13 @@ export default function RewardsTask() {
 
       {/* Tasks List Grid */}
       <div className="tasks-container">
-        <h2 className="tasks-section-title">Complete All 7 Verified Tasks</h2>
+        <h2 className="tasks-section-title">Complete All 8 Verified Tasks</h2>
         <p className="tasks-section-sub">
           Click the action button for each step to open official links. Steps will be marked completed automatically.
         </p>
 
         <div className="tasks-list">
-          {/* TASK 1: FOLLOW */}
+          {/* TASK 1: FOLLOW ON X */}
           <div className={`task-card ${completedTasks[1] ? "done" : ""}`}>
             <div className="task-left">
               <button
@@ -384,7 +384,7 @@ export default function RewardsTask() {
             </div>
           </div>
 
-          {/* TASK 2: LIKE */}
+          {/* TASK 2: SUBSCRIBE TELEGRAM */}
           <div className={`task-card ${completedTasks[2] ? "done" : ""}`}>
             <div className="task-left">
               <button
@@ -398,8 +398,50 @@ export default function RewardsTask() {
               </button>
               <div className="task-content">
                 <div className="task-title-wrap">
-                  <h3 className="task-title">Task 2: Like the Main Investigation Post</h3>
+                  <h3 className="task-title">Task 2: Subscribe Telegram Channel</h3>
                   {completedTasks[2] ? <span className="task-done-badge">COMPLETED</span> : null}
+                </div>
+                <p className="task-desc">
+                  Subscribe to the official <b>HackWatch Telegram channel</b> for live incident alerts, bot telemetry, and bounty announcements.
+                </p>
+                <div className="task-link-preview">
+                  Channel: <a href="https://t.me/hackwatchdot" target="_blank" rel="noopener noreferrer">https://t.me/hackwatchdot</a>
+                </div>
+              </div>
+            </div>
+            <div className="task-action-wrap">
+              <button
+                type="button"
+                className="btn task-action-btn telegram-btn"
+                onClick={() =>
+                  launchAction(
+                    2,
+                    "https://t.me/hackwatchdot",
+                    "Opened Telegram to subscribe @hackwatchdot! Task 2 verified."
+                  )
+                }
+              >
+                ✈️ Subscribe Telegram
+              </button>
+            </div>
+          </div>
+
+          {/* TASK 3: LIKE */}
+          <div className={`task-card ${completedTasks[3] ? "done" : ""}`}>
+            <div className="task-left">
+              <button
+                type="button"
+                className={`task-checkbox ${completedTasks[3] ? "checked" : ""}`}
+                onClick={() => toggleTask(3)}
+                title="Toggle completion"
+                aria-label="Toggle task 3"
+              >
+                {completedTasks[3] ? "✓" : "3"}
+              </button>
+              <div className="task-content">
+                <div className="task-title-wrap">
+                  <h3 className="task-title">Task 3: Like the Main Investigation Post</h3>
+                  {completedTasks[3] ? <span className="task-done-badge">COMPLETED</span> : null}
                 </div>
                 <p className="task-desc">
                   Like the official post detailing the $6.3B Binance exploit and onchain asset movements.
@@ -415,9 +457,9 @@ export default function RewardsTask() {
                 className="btn task-action-btn like-btn"
                 onClick={() =>
                   launchAction(
-                    2,
+                    3,
                     `https://x.com/intent/like?tweet_id=${TARGET_TWEET_ID}`,
-                    "Opened X to like the post! Task 2 verified."
+                    "Opened X to like the post! Task 3 verified."
                   )
                 }
               >
@@ -426,22 +468,22 @@ export default function RewardsTask() {
             </div>
           </div>
 
-          {/* TASK 3: COMMENT */}
-          <div className={`task-card ${completedTasks[3] ? "done" : ""}`}>
+          {/* TASK 4: COMMENT */}
+          <div className={`task-card ${completedTasks[4] ? "done" : ""}`}>
             <div className="task-left">
               <button
                 type="button"
-                className={`task-checkbox ${completedTasks[3] ? "checked" : ""}`}
-                onClick={() => toggleTask(3)}
+                className={`task-checkbox ${completedTasks[4] ? "checked" : ""}`}
+                onClick={() => toggleTask(4)}
                 title="Toggle completion"
-                aria-label="Toggle task 3"
+                aria-label="Toggle task 4"
               >
-                {completedTasks[3] ? "✓" : "3"}
+                {completedTasks[4] ? "✓" : "4"}
               </button>
               <div className="task-content">
                 <div className="task-title-wrap">
-                  <h3 className="task-title">Task 3: Comment on the Investigation Post</h3>
-                  {completedTasks[3] ? <span className="task-done-badge">COMPLETED</span> : null}
+                  <h3 className="task-title">Task 4: Comment on the Investigation Post</h3>
+                  {completedTasks[4] ? <span className="task-done-badge">COMPLETED</span> : null}
                 </div>
                 <p className="task-desc">
                   Leave a comment or onchain observation regarding the exploiters&apos; addresses and wallet safety.
@@ -457,9 +499,9 @@ export default function RewardsTask() {
                 className="btn task-action-btn comment-btn"
                 onClick={() =>
                   launchAction(
-                    3,
+                    4,
                     `https://x.com/intent/post?in_reply_to=${TARGET_TWEET_ID}`,
-                    "Opened X to comment! Task 3 verified."
+                    "Opened X to comment! Task 4 verified."
                   )
                 }
               >
@@ -468,22 +510,22 @@ export default function RewardsTask() {
             </div>
           </div>
 
-          {/* TASK 4: REPOST */}
-          <div className={`task-card ${completedTasks[4] ? "done" : ""}`}>
+          {/* TASK 5: REPOST */}
+          <div className={`task-card ${completedTasks[5] ? "done" : ""}`}>
             <div className="task-left">
               <button
                 type="button"
-                className={`task-checkbox ${completedTasks[4] ? "checked" : ""}`}
-                onClick={() => toggleTask(4)}
+                className={`task-checkbox ${completedTasks[5] ? "checked" : ""}`}
+                onClick={() => toggleTask(5)}
                 title="Toggle completion"
-                aria-label="Toggle task 4"
+                aria-label="Toggle task 5"
               >
-                {completedTasks[4] ? "✓" : "4"}
+                {completedTasks[5] ? "✓" : "5"}
               </button>
               <div className="task-content">
                 <div className="task-title-wrap">
-                  <h3 className="task-title">Task 4: Repost (Retweet) the Post</h3>
-                  {completedTasks[4] ? <span className="task-done-badge">COMPLETED</span> : null}
+                  <h3 className="task-title">Task 5: Repost (Retweet) the Post</h3>
+                  {completedTasks[5] ? <span className="task-done-badge">COMPLETED</span> : null}
                 </div>
                 <p className="task-desc">
                   Repost the pinned hack analysis to spread awareness across the wider crypto community.
@@ -499,9 +541,9 @@ export default function RewardsTask() {
                 className="btn rt task-action-btn repost-btn"
                 onClick={() =>
                   launchAction(
-                    4,
+                    5,
                     `https://x.com/intent/retweet?tweet_id=${TARGET_TWEET_ID}`,
-                    "Opened X to repost! Task 4 verified."
+                    "Opened X to repost! Task 5 verified."
                   )
                 }
               >
@@ -510,22 +552,22 @@ export default function RewardsTask() {
             </div>
           </div>
 
-          {/* TASK 5: SHARE */}
-          <div className={`task-card ${completedTasks[5] ? "done" : ""}`}>
+          {/* TASK 6: SHARE */}
+          <div className={`task-card ${completedTasks[6] ? "done" : ""}`}>
             <div className="task-left">
               <button
                 type="button"
-                className={`task-checkbox ${completedTasks[5] ? "checked" : ""}`}
-                onClick={() => toggleTask(5)}
+                className={`task-checkbox ${completedTasks[6] ? "checked" : ""}`}
+                onClick={() => toggleTask(6)}
                 title="Toggle completion"
-                aria-label="Toggle task 5"
+                aria-label="Toggle task 6"
               >
-                {completedTasks[5] ? "✓" : "5"}
+                {completedTasks[6] ? "✓" : "6"}
               </button>
               <div className="task-content">
                 <div className="task-title-wrap">
-                  <h3 className="task-title">Task 5: Share the Post</h3>
-                  {completedTasks[5] ? <span className="task-done-badge">COMPLETED</span> : null}
+                  <h3 className="task-title">Task 6: Share the Post</h3>
+                  {completedTasks[6] ? <span className="task-done-badge">COMPLETED</span> : null}
                 </div>
                 <p className="task-desc">
                   Share the investigation link to X, Telegram, or WhatsApp to keep Web3 traders informed.
@@ -541,9 +583,9 @@ export default function RewardsTask() {
                 className="btn task-action-btn x-btn"
                 onClick={() =>
                   launchAction(
-                    5,
+                    6,
                     `https://x.com/intent/post?url=${encodeURIComponent(TARGET_POST_URL)}`,
-                    "Opened X to share! Task 5 verified."
+                    "Opened X to share! Task 6 verified."
                   )
                 }
               >
@@ -557,9 +599,9 @@ export default function RewardsTask() {
                 className="btn task-action-btn telegram-btn"
                 onClick={() =>
                   launchAction(
-                    5,
+                    6,
                     `https://t.me/share/url?url=${encodeURIComponent(TARGET_POST_URL)}&text=${encodeURIComponent("🚨 $6.3B Binance hot wallet breach live sell tracker on HackWatch")}`,
-                    "Opened Telegram to share! Task 5 verified."
+                    "Opened Telegram to share! Task 6 verified."
                   )
                 }
               >
@@ -568,22 +610,22 @@ export default function RewardsTask() {
             </div>
           </div>
 
-          {/* TASK 6: TAG 2 FRIENDS */}
-          <div className={`task-card ${completedTasks[6] ? "done" : ""}`}>
+          {/* TASK 7: TAG 2 FRIENDS */}
+          <div className={`task-card ${completedTasks[7] ? "done" : ""}`}>
             <div className="task-left">
               <button
                 type="button"
-                className={`task-checkbox ${completedTasks[6] ? "checked" : ""}`}
-                onClick={() => toggleTask(6)}
+                className={`task-checkbox ${completedTasks[7] ? "checked" : ""}`}
+                onClick={() => toggleTask(7)}
                 title="Toggle completion"
-                aria-label="Toggle task 6"
+                aria-label="Toggle task 7"
               >
-                {completedTasks[6] ? "✓" : "6"}
+                {completedTasks[7] ? "✓" : "7"}
               </button>
               <div className="task-content">
                 <div className="task-title-wrap">
-                  <h3 className="task-title">Task 6: Tag 2 Friends on the Post</h3>
-                  {completedTasks[6] ? <span className="task-done-badge">COMPLETED</span> : null}
+                  <h3 className="task-title">Task 7: Tag 2 Friends on the Post</h3>
+                  {completedTasks[7] ? <span className="task-done-badge">COMPLETED</span> : null}
                 </div>
                 <p className="task-desc">
                   Quote the investigation post and tag 2 crypto friends (e.g. <code>@friend1 @friend2</code>) so they can verify their wallet holdings.
@@ -599,9 +641,9 @@ export default function RewardsTask() {
                 className="btn rt task-action-btn tag-btn"
                 onClick={() =>
                   launchAction(
-                    6,
+                    7,
                     `https://x.com/intent/post?text=${encodeURIComponent("🚨 Tracking the $6.3B Binance exploit on @Hackwatchdot! Tagging 2 friends @ @ to check infected addresses: ")}&url=${encodeURIComponent(TARGET_POST_URL)}`,
-                    "Opened X to tag 2 friends! Task 6 verified."
+                    "Opened X to tag 2 friends! Task 7 verified."
                   )
                 }
               >
@@ -610,20 +652,20 @@ export default function RewardsTask() {
             </div>
           </div>
 
-          {/* TASK 7: SUBMIT ERC WALLET */}
+          {/* TASK 8: SUBMIT ERC WALLET */}
           <div className={`task-card wallet-submission-card ${submission ? "done" : ""}`}>
             <div className="task-left" style={{ width: "100%" }}>
               <button
                 type="button"
                 className={`task-checkbox ${submission ? "checked" : ""}`}
-                aria-label="Task 7 status"
+                aria-label="Task 8 status"
                 disabled
               >
-                {submission ? "✓" : "7"}
+                {submission ? "✓" : "8"}
               </button>
               <div className="task-content" style={{ width: "100%" }}>
                 <div className="task-title-wrap">
-                  <h3 className="task-title">Task 7: Submit Your ERC-20 / ETH Wallet Address</h3>
+                  <h3 className="task-title">Task 8: Submit Your ERC-20 / ETH Wallet Address</h3>
                   {submission ? <span className="task-done-badge">SUBMITTED & VERIFIED</span> : null}
                 </div>
                 <p className="task-desc">
@@ -698,14 +740,14 @@ export default function RewardsTask() {
                       <button
                         type="submit"
                         className="btn rt submit-bounty-btn"
-                        disabled={completedCount < 6}
-                        title={completedCount < 6 ? "Complete tasks 1-6 first" : "Claim $5,000 Reward Entry"}
+                        disabled={completedCount < 7}
+                        title={completedCount < 7 ? "Complete tasks 1-7 first" : "Claim $5,000 Reward Entry"}
                       >
                         🚀 Submit Wallet & Claim $5,000 Entry
                       </button>
                       <span className="form-hint">
-                        {completedCount < 6
-                          ? `⚠️ Complete tasks 1 to 6 first (${completedCount}/6 completed)`
+                        {completedCount < 7
+                          ? `⚠️ Complete tasks 1 to 7 first (${completedCount}/7 completed)`
                           : "✅ Ready to claim! Click submit to generate your verified ticket."}
                       </span>
                     </div>
