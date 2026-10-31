@@ -1,0 +1,8 @@
+# robots.txt for HackWatch
+# https://hackwatch.hackwatch.workers.dev/
+
+User-agent: *
+Allow: /
+
+# Canonical XML Sitemap
+Sitemap: https://hackwatch.hackwatch.workers.dev/sitemap.xml

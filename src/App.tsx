@@ -43,6 +43,20 @@ const TABS: { id: TabId; label: string; short: string; advanced?: boolean }[] = 
   { id: "chat", label: "Chat", short: "Chat" },
 ];
 
+const TAB_TITLES: Record<TabId, string> = {
+  live: "Live Desk — Binance Hot Wallet Exploiter ($6.3B) | HackWatch",
+  fasttx: "Fast Transactions (677 Infected Wallets) — Live Stream | HackWatch",
+  flow: "Cross-Chain Visual Flow & Bridge Graph | HackWatch",
+  arkham: "Arkham Entity & Intel Breakdown | HackWatch",
+  exploit: "EIP-7702 Exploit Contract Analysis | HackWatch",
+  tokens: "Stolen Token Holdings & Pricing | HackWatch",
+  pressure: "Market Cap & Selling Pressure Analysis | HackWatch",
+  sales: "Live DEX Sales & Dump Velocity | HackWatch",
+  trail: "Onchain Fund Movement Trail | HackWatch",
+  timeline: "Exploit Timeline & Historical Sequence | HackWatch",
+  chat: "Live Community Investigation Desk & Clues | HackWatch",
+};
+
 const MODE_KEY = "hackwatch.mode";
 
 function readTab(): TabId {
@@ -179,14 +193,39 @@ function HackWatchApp() {
     if (mode === "simple" && (tab === "pressure" || tab === "trail")) setTab("live");
   }, [mode, tab]);
 
+  // Dynamic SEO Document Title
+  useEffect(() => {
+    document.title = TAB_TITLES[tab] || "Suspected Binance Hot Wallet Exploiter ($6.3B) — Live Sell & Fast Tx Tracker | HackWatch";
+  }, [tab]);
+
   const visibleTabs = useMemo(() => TABS.filter((tItem) => mode === "detailed" || !tItem.advanced), [mode]);
 
+  const postUrl = "https://x.com/Hackwatchdot/status/2116403772956225967";
+
   const copyLink = useCallback(() => {
-    const postUrl = "https://x.com/Hackwatchdot/status/2116403772956225967";
     void navigator.clipboard?.writeText(postUrl).then(
       () => toast("Copied post link: https://x.com/Hackwatchdot/status/2116403772956225967"),
       () => toast("Clipboard blocked — copy link manually."),
     );
+  }, [toast]);
+
+  const handleWebShare = useCallback(() => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator
+        .share({
+          title: "Suspected Binance Hot Wallet Exploiter ($6.3B) — HackWatch",
+          text: "🚨 Live tracking of the $6.3B Binance hot wallet breach across 677 infected wallets on 12 chains via @Hackwatchdot",
+          url: "https://x.com/Hackwatchdot/status/2116403772956225967",
+        })
+        .then(
+          () => toast("Shared successfully!"),
+          (err) => {
+            if (err && (err as { name?: string }).name !== "AbortError") {
+              toast("Share cancelled.");
+            }
+          }
+        );
+    }
   }, [toast]);
 
   const totalsMoved = useMemo(
@@ -346,6 +385,48 @@ function HackWatchApp() {
                     </svg>
                     {t("how_to_read")}
                   </button>
+                </div>
+                <div className="hero-viral-strip" role="group" aria-label="Quick social share options">
+                  <span className="hero-viral-label">⚡ Spread Intel:</span>
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent("🚨 Live investigation: Suspected Binance hot wallet exploiter ($6.3B) sell tracker & 677 infected wallets on @Hackwatchdot")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="viral-chip telegram"
+                    title="Share to Telegram"
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+                    </svg>
+                    <span>Telegram</span>
+                  </a>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent("🚨 Suspected Binance hot wallet exploiter ($6.3B) live sell tracker & 677 infected wallets: " + postUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="viral-chip whatsapp"
+                    title="Share to WhatsApp"
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+                      <path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.18-.175.2-.351.225-.652.075-.301-.15-1.27-.468-2.42-1.493-.894-.798-1.498-1.783-1.674-2.084-.175-.301-.019-.464.132-.614.135-.135.301-.351.452-.527.15-.175.2-.301.301-.501.1-.2.05-.376-.025-.527-.075-.15-.678-1.633-.929-2.235-.245-.586-.494-.506-.678-.515l-.578-.01c-.2 0-.527.075-.803.376s-1.055 1.03-1.055 2.51c0 1.481 1.08 2.91 1.23 3.111.15.201 2.126 3.247 5.15 4.555.72.311 1.282.497 1.72.636.724.23 1.383.197 1.904.119.58-.088 1.78-.727 2.03-1.43.25-.703.25-1.305.175-1.43-.075-.125-.276-.2-.577-.35zM12.04 2C6.54 2 2.08 6.46 2.08 11.96c0 1.83.49 3.56 1.36 5.06L2 22l5.13-1.35a9.91 9.91 0 004.91 1.29h.01c5.5 0 9.96-4.46 9.96-9.96 0-2.66-1.04-5.16-2.92-7.04A9.9 9.9 0 0012.04 2z" />
+                    </svg>
+                    <span>WhatsApp</span>
+                  </a>
+                  {typeof navigator !== "undefined" && typeof navigator.share === "function" ? (
+                    <button
+                      type="button"
+                      className="viral-chip native-share"
+                      onClick={handleWebShare}
+                      title="Open device share sheet"
+                    >
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                        <polyline points="16 6 12 2 8 6" />
+                        <line x1="12" y1="2" x2="12" y2="15" />
+                      </svg>
+                      <span>Share...</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
               <div className="top-side">

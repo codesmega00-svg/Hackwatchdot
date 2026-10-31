@@ -5011,4 +5011,160 @@ body.light-theme .p-stat-val {
     width: 100%;
     justify-content: center;
   }
+  .fasttx-hero-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .fasttx-hero-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+    font-size: 11px;
+    padding: 7px 6px;
+    text-align: center;
+  }
 }
+
+/* ==========================================================================
+   VIRAL SOCIAL SHARING & ENHANCED METRIC CHIPS
+   ========================================================================== */
+.hero-viral-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: rgba(14, 20, 29, 0.45);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  width: fit-content;
+  max-width: 100%;
+}
+.hero-viral-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mute);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.viral-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  min-height: 28px;
+}
+.viral-chip:hover {
+  transform: translateY(-1px);
+}
+.viral-chip.telegram {
+  color: #24a1de;
+  border-color: rgba(36, 161, 222, 0.35);
+  background: rgba(36, 161, 222, 0.1);
+}
+.viral-chip.telegram:hover {
+  background: #24a1de;
+  color: #ffffff;
+}
+.viral-chip.whatsapp {
+  color: #25d366;
+  border-color: rgba(37, 211, 102, 0.35);
+  background: rgba(37, 211, 102, 0.1);
+}
+.viral-chip.whatsapp:hover {
+  background: #25d366;
+  color: #ffffff;
+}
+.viral-chip.native-share {
+  color: #ff9a94;
+  border-color: rgba(255, 90, 82, 0.35);
+  background: rgba(255, 90, 82, 0.1);
+}
+.viral-chip.native-share:hover {
+  background: var(--red);
+  color: #ffffff;
+}
+
+[data-theme="light"] .hero-viral-strip,
+body.light-theme .hero-viral-strip {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+[data-theme="light"] .hero-viral-label,
+body.light-theme .hero-viral-label {
+  color: #64748b;
+}
+
+/* Fast Transactions Mini Share Buttons */
+.mini-tx-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 6px;
+}
+.mini-tx-share-btn:hover {
+  background: #000;
+  color: #fff;
+  border-color: #fff;
+  transform: translateY(-1px);
+}
+.mini-share-ioc-btn {
+  margin-left: 3px;
+  font-size: 10px;
+}
+.mini-share-ioc-btn:hover {
+  background: #000;
+  color: #fff;
+  border-color: #fff;
+}
+
+[data-theme="light"] .mini-tx-share-btn,
+body.light-theme .mini-tx-share-btn {
+  background: #f1f5fa;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+[data-theme="light"] .mini-tx-share-btn:hover,
+body.light-theme .mini-tx-share-btn:hover {
+  background: #0f172a;
+  color: #fff;
+}
+
+@media (max-width: 420px) {
+  .hero-viral-strip {
+    padding: 6px 8px;
+    gap: 5px;
+    width: 100%;
+  }
+  .viral-chip {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 5px 6px;
+    font-size: 10.5px;
+  }
+  .fasttx-hero-actions .btn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+

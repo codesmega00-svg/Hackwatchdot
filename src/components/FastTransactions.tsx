@@ -309,6 +309,52 @@ export default function FastTransactions() {
     );
   }, [filteredIocs, toast]);
 
+  // Social Sharing Handlers
+  const handleShareX = useCallback(() => {
+    const text = `🚨 Live multi-chain tracking of 677 infected wallets across 12 chains in the $6.3B Binance hot wallet breach. Real-time telemetry via @Hackwatchdot:`;
+    const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://x.com/Hackwatchdot/status/2116403772956225967")}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    toast("Opening X to share 677 Infected Wallets intel...");
+  }, [toast]);
+
+  const handleShareTelegram = useCallback(() => {
+    const text = `🚨 Live multi-chain tracking: 677 infected wallets across 12 chains in $6.3B Binance hot wallet breach on HackWatch`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent("https://x.com/Hackwatchdot/status/2116403772956225967")}&text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    toast("Opening Telegram to share...");
+  }, [toast]);
+
+  const handleShareWhatsApp = useCallback(() => {
+    const text = `🚨 677 Infected Wallets tracked in $6.3B Binance hot wallet exploit on HackWatch: https://x.com/Hackwatchdot/status/2116403772956225967`;
+    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    toast("Opening WhatsApp to share...");
+  }, [toast]);
+
+  const handleShareIntelNative = useCallback(() => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({
+        title: "677 Infected Wallets ($6.3B Binance Breach) — HackWatch",
+        text: "🚨 Live telemetry tracking 677 compromised addresses across 12 blockchains in the $6.3B Binance hot wallet exploit via @Hackwatchdot",
+        url: "https://x.com/Hackwatchdot/status/2116403772956225967",
+      }).catch(() => {});
+    }
+  }, []);
+
+  const handleShareMove = useCallback((m: BlockaidMove) => {
+    const text = `🚨 HackWatch Live Move Alert: ${m.amt} on ${m.chain} (${m.from} ➔ ${m.to}) · $6.3B Binance Breach`;
+    const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://x.com/Hackwatchdot/status/2116403772956225967")}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    toast(`Sharing transaction on X...`);
+  }, [toast]);
+
+  const handleShareIoc = useCallback((ioc: BlockaidIOC) => {
+    const text = `⚠️ Blockaid Compromised Wallet Alert: ${ioc.a} on ${ioc.c} [Risk: ${ioc.r}, ${ioc.s}] ($6.3B Binance Exploit)`;
+    const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://x.com/Hackwatchdot/status/2116403772956225967")}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    toast(`Sharing IOC on X: ${shortAddr(ioc.a)}`);
+  }, [toast]);
+
   return (
     <div className="fasttx-page-wrap">
       {/* Hero Header */}
@@ -340,6 +386,45 @@ export default function FastTransactions() {
               </svg>
               Official Blockaid Source
             </a>
+            <button
+              type="button"
+              className="btn rt x-share-btn"
+              onClick={handleShareX}
+              title="Share 677 Infected Wallets Intel to X (Twitter)"
+            >
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              Share on X
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={handleShareTelegram}
+              title="Share 677 Infected Wallets to Telegram"
+              style={{ background: "rgba(36, 161, 222, 0.15)", color: "#24A1DE", borderColor: "rgba(36, 161, 222, 0.4)" }}
+            >
+              ✈️ Telegram
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={handleShareWhatsApp}
+              title="Share 677 Infected Wallets to WhatsApp"
+              style={{ background: "rgba(37, 211, 102, 0.15)", color: "#25D366", borderColor: "rgba(37, 211, 102, 0.4)" }}
+            >
+              💬 WhatsApp
+            </button>
+            {typeof navigator !== "undefined" && typeof navigator.share === "function" ? (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={handleShareIntelNative}
+                title="Share via device menu"
+              >
+                📤 Share...
+              </button>
+            ) : null}
             <button type="button" className="btn" onClick={handleExportJSON}>
               📥 Export 677 IOCs (JSON)
             </button>
@@ -542,6 +627,17 @@ export default function FastTransactions() {
                           {m.t.slice(11, 19)} UTC
                         </span>
                       ) : null}
+                      <button
+                        type="button"
+                        className="mini-tx-share-btn"
+                        onClick={() => handleShareMove(m)}
+                        title="Share this transaction move on X"
+                      >
+                        <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                        Share
+                      </button>
                     </div>
                   </div>
 
@@ -730,6 +826,16 @@ export default function FastTransactions() {
                             title="Copy address"
                           >
                             📋
+                          </button>
+                          <button
+                            type="button"
+                            className="mini-copy-btn mini-share-ioc-btn"
+                            onClick={() => handleShareIoc(ioc)}
+                            title="Share infected wallet on X"
+                          >
+                            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
+                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
                           </button>
                         </div>
                       </td>

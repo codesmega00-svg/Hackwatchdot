@@ -1,0 +1,24 @@
+{
+  "name": "HackWatch — Binance Exploit Forensics Desk",
+  "short_name": "HackWatch",
+  "description": "Live multi-chain forensics tracking the $6.3B Binance hot wallet breach and 677 infected wallets across 12 chains.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080a0f",
+  "theme_color": "#080a0f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/hackwatch-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/hackwatch-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
