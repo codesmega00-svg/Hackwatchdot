@@ -10,6 +10,7 @@ import Sales from "./components/Sales";
 import Tokens from "./components/Tokens";
 import Timeline from "./components/Timeline";
 import Trail from "./components/Trail";
+import RewardsTask from "./components/RewardsTask";
 import { Bar, Kpi, LiveBadge, ToastCtx } from "./components/ui";
 import AnnouncementBar from "./components/AnnouncementBar";
 import SupportSection from "./components/SupportSection";
@@ -26,7 +27,7 @@ import {
 import { pct, usd } from "./lib/format";
 import { LiveTx, useBinance, useLiveTransactions, useTick } from "./lib/useLive";
 
-type TabId = "live" | "fasttx" | "flow" | "arkham" | "exploit" | "tokens" | "pressure" | "sales" | "trail" | "timeline" | "chat";
+type TabId = "live" | "fasttx" | "flow" | "arkham" | "exploit" | "tokens" | "pressure" | "sales" | "trail" | "timeline" | "chat" | "rewards";
 type Mode = "detailed" | "simple";
 
 const TABS: { id: TabId; label: string; short: string; advanced?: boolean }[] = [
@@ -41,6 +42,7 @@ const TABS: { id: TabId; label: string; short: string; advanced?: boolean }[] = 
   { id: "trail", label: "Trail", short: "Trail", advanced: true },
   { id: "timeline", label: "Timeline", short: "Time" },
   { id: "chat", label: "Chat", short: "Chat" },
+  { id: "rewards", label: "Claim $5,000 Reward", short: "$5K Bounty" },
 ];
 
 const TAB_TITLES: Record<TabId, string> = {
@@ -55,6 +57,7 @@ const TAB_TITLES: Record<TabId, string> = {
   trail: "Onchain Fund Movement Trail | HackWatch",
   timeline: "Exploit Timeline & Historical Sequence | HackWatch",
   chat: "Live Community Investigation Desk & Clues | HackWatch",
+  rewards: "Claim $5,000 Community Reward — Complete Tasks | HackWatch",
 };
 
 const MODE_KEY = "hackwatch.mode";
@@ -110,6 +113,13 @@ function Icon({ id }: { id: TabId }) {
       return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
     case "chat":
       return <svg {...common}><path d="M4 5h16v11H9l-5 4z" /></svg>;
+    case "rewards":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+          <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
   }
 }
 
@@ -256,6 +266,7 @@ function HackWatchApp() {
                   <span className="n">{String(i + 1).padStart(2, "0")}</span>
                   {t(`nav_${tItem.id}`, tItem.label)}
                   {tItem.id === "chat" ? <span className="pill">open</span> : null}
+                  {tItem.id === "rewards" ? <span className="pill bounty-pill">$5K</span> : null}
                 </button>
               ))}
             </nav>
@@ -542,6 +553,7 @@ function HackWatchApp() {
             {tab === "trail" && mode === "detailed" ? <Trail events={events} totalMoved={totalsMoved} /> : null}
             {tab === "timeline" ? <Timeline events={events} /> : null}
             {tab === "chat" ? <Chat /> : null}
+            {tab === "rewards" ? <RewardsTask /> : null}
           </main>
 
           <details id="how" className="how" ref={howRef} open={howOpen} onToggle={(e) => setHowOpen((e.currentTarget as HTMLDetailsElement).open)}>
