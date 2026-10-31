@@ -933,3 +933,4 @@ export default function FastTransactions() {
     </div>
   );
 }
+

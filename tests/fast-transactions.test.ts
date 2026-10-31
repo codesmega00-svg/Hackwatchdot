@@ -105,3 +105,4 @@ describe("Fast Transactions & 677 Infected Wallets (Blockaid Telemetry)", () => 
     expect(btcOnly.length).toBe(31);
   });
 });
+

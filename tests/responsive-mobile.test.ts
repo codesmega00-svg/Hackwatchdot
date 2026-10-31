@@ -5,6 +5,10 @@ import path from "node:path";
 describe("Mobile Responsiveness & Multi-Device Optimization", () => {
   const cssPath = path.resolve(__dirname, "../src/index.css");
   const css = fs.readFileSync(cssPath, "utf-8");
+  const appPath = path.resolve(__dirname, "../src/App.tsx");
+  const appTsx = fs.readFileSync(appPath, "utf-8");
+  const livePath = path.resolve(__dirname, "../src/components/Live.tsx");
+  const liveTsx = fs.readFileSync(livePath, "utf-8");
 
   it("defines responsive media queries across tablet and mobile viewports", () => {
     expect(css).toContain("@media (max-width: 980px)");
@@ -30,5 +34,24 @@ describe("Mobile Responsiveness & Multi-Device Optimization", () => {
     expect(css).toContain(".feed-addr-short");
     expect(css).toContain(".mobile-swipe-cue");
   });
-});
 
+  it("configures hero action buttons for touch-friendly mobile layouts", () => {
+    expect(css).toContain(".btns.hero-action-btns");
+    expect(css).toContain("flex: 1 1 calc(50% - 6px);");
+    expect(css).toContain(".btns.hero-action-btns .x-follow-btn");
+  });
+
+  it("points Share on X, Repost, and Copy Link to https://x.com/Hackwatchdot/status/2116403772956225967", () => {
+    const targetPostUrl = "https://x.com/Hackwatchdot/status/2116403772956225967";
+    const targetTweetId = "2116403772956225967";
+
+    // App.tsx
+    expect(appTsx).toContain(targetTweetId);
+    expect(appTsx).toContain(`tweet_id=${targetTweetId}`);
+    expect(appTsx).toContain(encodeURIComponent(targetPostUrl));
+    expect(appTsx).toContain(`const postUrl = "${targetPostUrl}";`);
+
+    // Live.tsx
+    expect(liveTsx).toContain(`tweet_id=${targetTweetId}`);
+  });
+});

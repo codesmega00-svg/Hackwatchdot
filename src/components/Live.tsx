@@ -587,7 +587,13 @@ export default function Live({
             </svg>
             Follow @Hackwatchdot
           </a>
-          <a className="btn ghost" href="https://x.com/intent/retweet?tweet_id=2115943603554181158" target="_blank" rel="noopener noreferrer">
+          <a
+            className="btn ghost"
+            href="https://x.com/intent/retweet?tweet_id=2116403772956225967"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Repost on X: https://x.com/Hackwatchdot/status/2116403772956225967"
+          >
             Repost on X
           </a>
         </div>

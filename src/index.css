@@ -2010,8 +2010,30 @@ div.hide-s, span.hide-s, button.hide-s { display: block; }
   .lede { font-size: 14px; line-height: 1.5; }
 
   .btns {
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     margin-top: 14px;
+    width: 100%;
+  }
+  .btns.hero-action-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .btns.hero-action-btns .btn {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 130px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    justify-content: center;
+    text-align: center;
+    min-height: 36px;
+    border-radius: 8px;
+  }
+  .btns.hero-action-btns .x-follow-btn {
+    flex: 1 1 100%;
   }
   .btn {
     padding: 7px 11px;
@@ -2188,6 +2210,17 @@ div.hide-s, span.hide-s, button.hide-s { display: block; }
     padding: 5px 8px;
     font-size: 11px;
   }
+
+  .btns.hero-action-btns .btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 118px;
+    padding: 7px 6px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .btns.hero-action-btns .x-follow-btn {
+    flex: 1 1 100%;
+  }
 }
 
 /* --------------------------------------------------------------- 360px Breakpoint (Ultra-Compact Phones) */
@@ -2197,6 +2230,12 @@ div.hide-s, span.hide-s, button.hide-s { display: block; }
   h1 { font-size: 22px; }
   .kpi .v { font-size: 14px; }
   .btn { padding: 6px 9px; font-size: 11.5px; }
+  .btns.hero-action-btns .btn {
+    flex: 1 1 100%;
+    min-width: 100%;
+    font-size: 11.5px;
+    padding: 8px 10px;
+  }
   .tabbar button { min-width: 52px; padding: 4px 4px; font-size: 9.5px; }
 }
 
