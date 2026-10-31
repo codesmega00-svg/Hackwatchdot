@@ -18,6 +18,12 @@ describe("Mobile Responsiveness & Multi-Device Optimization", () => {
     expect(css).toContain("@media (max-width: 360px)");
   });
 
+  it("enforces document-level horizontal overflow prevention", () => {
+    expect(css).toContain("overflow-x: hidden;");
+    expect(css).toContain("max-width: 100vw;");
+    expect(css).toContain("max-width: 100%;");
+  });
+
   it("includes hide-m and hide-s column visibility classes", () => {
     expect(css).toContain(".hide-m { display: none !important; }");
     expect(css).toContain(".hide-s { display: none !important; }");
@@ -35,10 +41,14 @@ describe("Mobile Responsiveness & Multi-Device Optimization", () => {
     expect(css).toContain(".mobile-swipe-cue");
   });
 
-  it("configures hero action buttons for touch-friendly mobile layouts", () => {
+  it("configures hero action buttons in a balanced 2x2 grid for mobile layouts", () => {
     expect(css).toContain(".btns.hero-action-btns");
-    expect(css).toContain("flex: 1 1 calc(50% - 6px);");
-    expect(css).toContain(".btns.hero-action-btns .x-follow-btn");
+    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
+  });
+
+  it("prevents header text clipping with word-wrap and responsive clamp", () => {
+    expect(css).toContain("overflow-wrap: break-word;");
+    expect(css).toContain("word-break: break-word;");
   });
 
   it("points Share on X, Repost, and Copy Link to https://x.com/Hackwatchdot/status/2116403772956225967", () => {

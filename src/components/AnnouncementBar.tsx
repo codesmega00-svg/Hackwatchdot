@@ -115,57 +115,58 @@ export default function AnnouncementBar() {
             </a>
           </div>
 
-          {/* Multi-Language Selector Dropdown */}
-          <div className="lang-switcher-wrapper">
+          {/* Quick Controls: Lang & Theme */}
+          <div className="announcement-controls-group">
+            <div className="lang-switcher-wrapper">
+              <button
+                type="button"
+                className="lang-switcher-btn"
+                onClick={() => setLangMenuOpen((o) => !o)}
+                aria-label="Select Language"
+                aria-expanded={langMenuOpen}
+              >
+                <span style={{ fontSize: 13 }}>{currentLangObj.flag}</span>
+                <span>{currentLangObj.label}</span>
+                <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
+              </button>
+
+              {langMenuOpen ? (
+                <div className="lang-menu" role="menu">
+                  {LANGUAGES.map((item) => (
+                    <button
+                      key={item.code}
+                      type="button"
+                      role="menuitem"
+                      className={`lang-option ${lang === item.code ? "active" : ""}`}
+                      onClick={() => {
+                        setLang(item.code as Lang);
+                        setLangMenuOpen(false);
+                        toast(`Language switched to ${item.label}`);
+                      }}
+                    >
+                      <span>{item.flag}</span>
+                      <span>{item.label}</span>
+                      {lang === item.code ? <span className="check">✓</span> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
             <button
               type="button"
-              className="lang-switcher-btn"
-              onClick={() => setLangMenuOpen((o) => !o)}
-              aria-label="Select Language"
-              aria-expanded={langMenuOpen}
+              className="announcement-theme-btn"
+              onClick={() => {
+                toggleTheme();
+                toast(theme === "dark" ? "Switched to Light Mode (Sky Horizon)" : "Switched to Dark Mode");
+              }}
+              aria-label="Toggle Light / Dark mode"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              <span style={{ fontSize: 13 }}>{currentLangObj.flag}</span>
-              <span>{currentLangObj.label}</span>
-              <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
+              <span style={{ fontSize: 12 }}>{theme === "dark" ? "☀️" : "🌙"}</span>
+              <span>{theme === "dark" ? t("theme_light") : t("theme_dark")}</span>
             </button>
-
-            {langMenuOpen ? (
-              <div className="lang-menu" role="menu">
-                {LANGUAGES.map((item) => (
-                  <button
-                    key={item.code}
-                    type="button"
-                    role="menuitem"
-                    className={`lang-option ${lang === item.code ? "active" : ""}`}
-                    onClick={() => {
-                      setLang(item.code as Lang);
-                      setLangMenuOpen(false);
-                      toast(`Language switched to ${item.label}`);
-                    }}
-                  >
-                    <span>{item.flag}</span>
-                    <span>{item.label}</span>
-                    {lang === item.code ? <span className="check">✓</span> : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
-
-          {/* Quick Theme Switcher */}
-          <button
-            type="button"
-            className="announcement-theme-btn"
-            onClick={() => {
-              toggleTheme();
-              toast(theme === "dark" ? "Switched to Light Mode (Sky Horizon)" : "Switched to Dark Mode");
-            }}
-            aria-label="Toggle Light / Dark mode"
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            <span style={{ fontSize: 12 }}>{theme === "dark" ? "☀️" : "🌙"}</span>
-            <span>{theme === "dark" ? t("theme_light") : t("theme_dark")}</span>
-          </button>
         </div>
       </div>
     </aside>

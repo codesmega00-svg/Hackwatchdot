@@ -60,6 +60,16 @@ body {
   font: 15.5px/1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+#root,
+.app {
+  overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
 }
 
 body::before {
@@ -211,10 +221,11 @@ svg { display: block; }
 
 header.top { margin-bottom: 26px; }
 .top-grid { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; justify-content: space-between; }
-.top-copy { flex: 1 1 560px; min-width: 0; }
+.top-copy { flex: 1 1 560px; min-width: 0; max-width: 100%; }
 h1 {
   font-family: var(--serif); font-weight: 600; letter-spacing: -0.015em;
-  font-size: clamp(29px, 3.6vw, 45px); line-height: 1.08; margin: 0 0 14px;
+  font-size: clamp(26px, 3.6vw, 45px); line-height: 1.1; margin: 0 0 14px;
+  overflow-wrap: break-word; word-break: break-word; hyphens: auto;
 }
 h1 em { font-style: italic; color: #ffd9d6; }
 .lede { color: var(--mute); margin: 0; max-width: 660px; font-size: 15.5px; line-height: 1.6; }
@@ -1998,43 +2009,153 @@ div.hide-s, span.hide-s, button.hide-s { display: block; }
   .feed-addr-short { display: inline; }
 
   .wrap {
-    padding: 14px 13px calc(96px + env(safe-area-inset-bottom));
+    padding: 14px 12px calc(96px + env(safe-area-inset-bottom));
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .mbar {
-    margin: -14px -13px 14px;
-    padding: max(10px, env(safe-area-inset-top)) 13px 10px;
+    margin: -14px -12px 14px;
+    padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+    width: auto;
   }
 
-  h1 { font-size: clamp(23px, 6.8vw, 30px); line-height: 1.15; }
-  .lede { font-size: 14px; line-height: 1.5; }
-
-  .btns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 14px;
-    width: 100%;
+  h1 {
+    font-size: clamp(20px, 5.8vw, 26px);
+    line-height: 1.2;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
+  .lede { font-size: 13.5px; line-height: 1.5; }
+
   .btns.hero-action-btns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
     width: 100%;
+    margin-top: 14px;
   }
   .btns.hero-action-btns .btn {
-    flex: 1 1 calc(50% - 6px);
-    min-width: 130px;
-    padding: 8px 10px;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 6px;
     font-size: 11.5px;
     justify-content: center;
     text-align: center;
-    min-height: 36px;
     border-radius: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .btns.hero-action-btns .x-follow-btn {
+
+  /* Top View Controls on Mobile */
+  .top-side {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .top-side .modeseg {
+    flex: 1 1 calc(50% - 4px);
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+  }
+  .top-side .modeseg button {
+    flex: 1 1 50%;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 11px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .live-presence-pill {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* Announcement Bar Mobile Optimization */
+  .announcement-bar {
+    padding: 6px 10px;
+    overflow-x: hidden;
+  }
+  .announcement-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+  .announcement-left {
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+  }
+  .announcement-alert-text {
+    font-size: 11px;
+    line-height: 1.35;
+    text-align: center;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .announcement-right {
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .announcement-support-group {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .announcement-support-label {
+    display: none;
+  }
+  .support-pill {
+    padding: 3px 8px;
+    font-size: 10.5px;
+    gap: 5px;
+    min-width: 0;
+    flex: 1 1 calc(50% - 3px);
+    justify-content: space-between;
+  }
+  .support-pill .addr-mono {
+    display: none;
+  }
+  .support-pill.x-follow {
     flex: 1 1 100%;
+    width: 100%;
+    justify-content: center;
   }
+  .announcement-controls-group {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .announcement-controls-group .lang-switcher-wrapper,
+  .announcement-controls-group .announcement-theme-btn {
+    flex: 1 1 calc(50% - 3px);
+  }
+  .announcement-controls-group .lang-switcher-btn,
+  .announcement-controls-group .announcement-theme-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
   .btn {
     padding: 7px 11px;
     font-size: 12px;
@@ -2190,53 +2311,49 @@ div.hide-s, span.hide-s, button.hide-s { display: block; }
   .kpi .v { font-size: 15px; }
   .tick { min-width: 112px; }
 
-  .announcement-right {
-    flex-wrap: wrap;
-  }
-  .announcement-support-group {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .support-pill.x-follow {
-    width: 100%;
-    justify-content: center;
-  }
-
   .flow-inspector-grid {
     grid-template-columns: 1fr;
   }
 
   .modeseg button {
-    padding: 5px 8px;
-    font-size: 11px;
+    padding: 5px 6px;
+    font-size: 10.5px;
   }
 
-  .btns.hero-action-btns .btn {
-    flex: 1 1 calc(50% - 4px);
-    min-width: 118px;
-    padding: 7px 6px;
-    font-size: 11px;
-    gap: 5px;
+  .btns.hero-action-btns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
-  .btns.hero-action-btns .x-follow-btn {
+  .btns.hero-action-btns .btn {
+    padding: 7px 4px;
+    font-size: 11px;
+    min-height: 38px;
+  }
+
+  .support-pill {
     flex: 1 1 100%;
+    width: 100%;
   }
 }
 
 /* --------------------------------------------------------------- 360px Breakpoint (Ultra-Compact Phones) */
 @media (max-width: 360px) {
-  .wrap { padding-left: 9px; padding-right: 9px; }
-  .mbar { margin-left: -9px; margin-right: -9px; }
-  h1 { font-size: 22px; }
+  .wrap { padding-left: 8px; padding-right: 8px; }
+  .mbar { margin-left: -8px; margin-right: -8px; }
+  h1 { font-size: 20px; }
   .kpi .v { font-size: 14px; }
-  .btn { padding: 6px 9px; font-size: 11.5px; }
+  .btn { padding: 6px 8px; font-size: 11px; }
+  .btns.hero-action-btns {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
   .btns.hero-action-btns .btn {
-    flex: 1 1 100%;
-    min-width: 100%;
+    width: 100%;
     font-size: 11.5px;
+    min-height: 38px;
     padding: 8px 10px;
   }
-  .tabbar button { min-width: 52px; padding: 4px 4px; font-size: 9.5px; }
+  .tabbar button { min-width: 50px; padding: 4px 2px; font-size: 9px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
