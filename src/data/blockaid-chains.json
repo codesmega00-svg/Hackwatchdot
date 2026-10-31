@@ -1,0 +1,74 @@
+{
+  "ethereum": {
+    "name": "Ethereum",
+    "sym": "E",
+    "color": "#627EEA",
+    "exp": "https://etherscan.io/address/"
+  },
+  "bitcoin": {
+    "name": "Bitcoin",
+    "sym": "B",
+    "color": "#F7931A",
+    "exp": "https://mempool.space/address/"
+  },
+  "tron": {
+    "name": "Tron",
+    "sym": "T",
+    "color": "#EB0029",
+    "exp": "https://tronscan.org/#/address/"
+  },
+  "solana": {
+    "name": "Solana",
+    "sym": "S",
+    "color": "#9945FF",
+    "exp": "https://solscan.io/account/"
+  },
+  "xrp": {
+    "name": "XRP",
+    "sym": "X",
+    "color": "#23292F",
+    "exp": "https://xrpscan.com/account/"
+  },
+  "optimism": {
+    "name": "Optimism",
+    "sym": "O",
+    "color": "#FF0420",
+    "exp": "https://optimistic.etherscan.io/address/"
+  },
+  "arbitrum": {
+    "name": "Arbitrum",
+    "sym": "A",
+    "color": "#28A0F0",
+    "exp": "https://arbiscan.io/address/"
+  },
+  "avalanche": {
+    "name": "Avalanche",
+    "sym": "A",
+    "color": "#E84142",
+    "exp": "https://snowtrace.io/address/"
+  },
+  "polygon": {
+    "name": "Polygon",
+    "sym": "P",
+    "color": "#8247E5",
+    "exp": "https://polygonscan.com/address/"
+  },
+  "near": {
+    "name": "NEAR",
+    "sym": "N",
+    "color": "#00C08B",
+    "exp": "https://nearblocks.io/address/"
+  },
+  "base": {
+    "name": "Base",
+    "sym": "B",
+    "color": "#0052FF",
+    "exp": "https://basescan.org/address/"
+  },
+  "bsc": {
+    "name": "BNB Chain",
+    "sym": "B",
+    "color": "#F0B90B",
+    "exp": "https://bscscan.com/address/"
+  }
+}

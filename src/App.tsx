@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ArkhamEntity from "./components/ArkhamEntity";
 import Chat from "./components/Chat";
+import FastTransactions from "./components/FastTransactions";
 import EtherscanFlow from "./components/EtherscanFlow";
 import Exploit from "./components/Exploit";
 import Live from "./components/Live";
@@ -25,11 +26,12 @@ import {
 import { pct, usd } from "./lib/format";
 import { LiveTx, useBinance, useLiveTransactions, useTick } from "./lib/useLive";
 
-type TabId = "live" | "flow" | "arkham" | "exploit" | "tokens" | "pressure" | "sales" | "trail" | "timeline" | "chat";
+type TabId = "live" | "fasttx" | "flow" | "arkham" | "exploit" | "tokens" | "pressure" | "sales" | "trail" | "timeline" | "chat";
 type Mode = "detailed" | "simple";
 
 const TABS: { id: TabId; label: string; short: string; advanced?: boolean }[] = [
   { id: "live", label: "Live", short: "Live" },
+  { id: "fasttx", label: "Fast Tx & 677 Wallets", short: "Fast Tx" },
   { id: "flow", label: "Etherscan Flow", short: "Flow" },
   { id: "arkham", label: "Arkham Entity", short: "Arkham" },
   { id: "exploit", label: "Exploit Contract", short: "Exploit" },
@@ -53,6 +55,12 @@ function Icon({ id }: { id: TabId }) {
   switch (id) {
     case "live":
       return <svg {...common}><path d="M2 12h4l3-8 4 16 3-8h6" /></svg>;
+    case "fasttx":
+      return (
+        <svg {...common}>
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+      );
     case "flow":
       return (
         <svg {...common}>
@@ -411,6 +419,7 @@ function HackWatchApp() {
                 onOpenExploit={() => navigate("exploit")}
               />
             ) : null}
+            {tab === "fasttx" ? <FastTransactions /> : null}
             {tab === "flow" ? (
               <EtherscanFlow
                 events={events}

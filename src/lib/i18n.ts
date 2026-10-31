@@ -25,6 +25,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Header & Nav
     nav_sections: "Sections",
     nav_live: "Live",
+    nav_fasttx: "Fast Tx (677)",
     nav_flow: "Etherscan Flow",
     nav_arkham: "Arkham Entity",
     nav_exploit: "Exploit Contract",
@@ -76,6 +77,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Header & Nav
     nav_sections: "导航目录",
     nav_live: "实时监控",
+    nav_fasttx: "快转 & 677 钱包",
     nav_flow: "Etherscan 资金流向",
     nav_arkham: "Arkham 实体档案",
     nav_exploit: "漏洞合约 (#code)",
@@ -127,6 +129,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Header & Nav
     nav_sections: "Secciones",
     nav_live: "En vivo",
+    nav_fasttx: "Transacciones Rápidas (677)",
     nav_flow: "Flujo Etherscan",
     nav_arkham: "Entidad Arkham",
     nav_exploit: "Contrato del Exploit",
@@ -178,6 +181,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Header & Nav
     nav_sections: "セクション",
     nav_live: "ライブ監視",
+    nav_fasttx: "高速送金 (677)",
     nav_flow: "Etherscan フロー",
     nav_arkham: "Arkham エンティティ",
     nav_exploit: "エクスプロイト契約 (#code)",
@@ -229,6 +233,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Header & Nav
     nav_sections: "메뉴",
     nav_live: "실시간 감시",
+    nav_fasttx: "실시간 전송 (677)",
     nav_flow: "Etherscan 흐름",
     nav_arkham: "Arkham 엔티티",
     nav_exploit: "익스플로잇 컨트랙트",
@@ -280,6 +285,7 @@ export const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     // Header & Nav
     nav_sections: "Разделы",
     nav_live: "Прямой эфир",
+    nav_fasttx: "Быстрые переводы (677)",
     nav_flow: "Поток Etherscan",
     nav_arkham: "Профиль Arkham",
     nav_exploit: "Контракт эксплойта",
