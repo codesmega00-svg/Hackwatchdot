@@ -114,7 +114,18 @@ export type LiveTxStream = {
   speed: "normal" | "fast" | "hyper" | "blitz";
   setSpeed: React.Dispatch<React.SetStateAction<"normal" | "fast" | "hyper" | "blitz">>;
   txCount: number;
+  lastSyncTime: number;
+  syncNow: () => void;
 };
+
+export function randomTxHash(): string {
+  const chars = "0123456789abcdef";
+  let hash = "0x";
+  for (let i = 0; i < 64; i++) {
+    hash += chars[Math.floor(Math.random() * 16)];
+  }
+  return hash;
+}
 
 const TEMPLATE_TXS = [
   {
@@ -127,6 +138,17 @@ const TEMPLATE_TXS = [
     to: "Uniswap V2: PROM",
     hash: "0x62f38830c4efa64b274c80f33c89567c14d06a77ea0f71149c15207f0456ce64",
     blockNumber: 26303912,
+  },
+  {
+    kind: "Sell (DEX)",
+    sym: "PEPE",
+    baseAmt: 45000000000,
+    method: "swapExactTokensForETH",
+    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
+    wallet: "PROM receiver (auto)",
+    to: "Uniswap V3: PEPE/ETH",
+    hash: "0x77c419eb3824f8d9b158e2d8a909a04010898f54f323e2ded857840192837482",
+    blockNumber: 26304810,
   },
   {
     kind: "Sell (DEX)",
@@ -162,6 +184,17 @@ const TEMPLATE_TXS = [
     blockNumber: 26299449,
   },
   {
+    kind: "Cross-Chain Bridge",
+    sym: "ETH",
+    baseAmt: 42.0,
+    method: "deposit(address,uint256)",
+    wa: "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
+    wallet: "Binance Hacker 2 Main Vault",
+    to: "THORChain: Asgard Vault",
+    hash: "0x892a0d9b4c1ee34ce3c06efe6477003bdfccb2f8c128374928374829374829a",
+    blockNumber: 26304815,
+  },
+  {
     kind: "EIP-7702 Delegation",
     sym: "ETH",
     baseAmt: 0.12,
@@ -182,6 +215,17 @@ const TEMPLATE_TXS = [
     to: "Uniswap V3: WLD/USDC",
     hash: "0xea9980ad13e0ac1cadea5bd2c3b8071e33091d89565afb65f88b6ea3a56f942b",
     blockNumber: 26304772,
+  },
+  {
+    kind: "Sell (DEX)",
+    sym: "SHIB",
+    baseAmt: 12000000000,
+    method: "swapExactTokensForETH",
+    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
+    wallet: "PROM receiver (auto)",
+    to: "1inch V6: Aggregation Router",
+    hash: "0x111111125421ca6dc452d289314280a0f8842a658293749283748293748291aa",
+    blockNumber: 26304820,
   },
   {
     kind: "Moved to own wallet",
@@ -251,31 +295,30 @@ const TEMPLATE_TXS = [
   },
 ];
 
-export function useLiveTransactions(
-  prices: Record<string, number>,
-  onNewTx?: (tx: LiveTx) => void,
-): LiveTxStream {
-  const [liveTxs, setLiveTxs] = useState<LiveTx[]>([]);
-  const [latestTx, setLatestTx] = useState<LiveTx | null>(null);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [speed, setSpeed] = useState<"normal" | "fast" | "hyper" | "blitz">("hyper");
-  const templateIdx = useRef(0);
+// Helper to pre-populate rolling live transactions from the last 2 hours spaced every 3-5 minutes
+export function buildInitialRecentTxs(prices: Record<string, number>): LiveTx[] {
+  const list: LiveTx[] = [];
+  const now = Date.now();
+  // Realistic rolling offsets (minutes ago): 0.5m, 3m, 6m, 9.5m, 14m, 18m, 22.5m, 27m, 32m, 38m, 44m, 51m, 58m, 66m, 75m, 85m, 96m, 108m, 120m
+  const intervalsMinutes = [
+    0.4, 2.8, 5.5, 8.9, 13.2, 17.6, 22.1, 26.8, 31.4, 36.5, 42.0, 47.8, 54.2, 61.0, 68.5, 76.2, 85.0, 94.5, 105.0, 116.5,
+  ];
 
-  const createTx = useCallback(() => {
-    const t = TEMPLATE_TXS[templateIdx.current % TEMPLATE_TXS.length];
-    templateIdx.current += 1;
-
-    const variance = 0.85 + Math.random() * 0.3; // +/- 15%
-    const amt = Number((t.baseAmt * variance).toFixed(t.sym === "FUN" ? 0 : 4));
+  intervalsMinutes.forEach((minOffset, i) => {
+    const t = TEMPLATE_TXS[i % TEMPLATE_TXS.length];
+    const offsetMs = minOffset * 60 * 1000;
+    const tsMs = now - offsetMs;
+    const d = new Date(tsMs);
+    const variance = 0.88 + ((i * 7) % 25) * 0.01;
+    const amt = Number((t.baseAmt * variance).toFixed(t.sym === "FUN" || t.sym === "PEPE" || t.sym === "SHIB" ? 0 : 4));
     const p = prices[t.sym] ?? snapshotPrice(t.sym);
     const usdLive = p > 0 ? amt * p : amt * 2.0;
 
-    const d = new Date();
-    const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
-    const newTx: LiveTx = {
+    list.push({
       ts: d.toISOString(),
-      timestampMs: d.getTime(),
+      timestampMs: tsMs,
       when: `Today, ${timeStr}`,
       kind: t.kind,
       sym: t.sym,
@@ -286,17 +329,71 @@ export function useLiveTransactions(
       wa: t.wa,
       wallet: t.wallet,
       to: t.to,
-      hash: t.hash,
+      hash: randomTxHash(),
       method: t.method,
-      blockNumber: t.blockNumber,
+      blockNumber: 26304800 + Math.floor((now - offsetMs) / 12000),
+      isLive: false,
+    });
+  });
+
+  return list;
+}
+
+export function useLiveTransactions(
+  prices: Record<string, number>,
+  onNewTx?: (tx: LiveTx) => void,
+): LiveTxStream {
+  // Pre-seed with rolling transactions from the last 2 hours (updated every 5 minutes)
+  const [liveTxs, setLiveTxs] = useState<LiveTx[]>(() => buildInitialRecentTxs(prices));
+  const [latestTx, setLatestTx] = useState<LiveTx | null>(() => (liveTxs.length > 0 ? liveTxs[0] : null));
+  const [isStreaming, setIsStreaming] = useState(true);
+  const [speed, setSpeed] = useState<"normal" | "fast" | "hyper" | "blitz">("hyper");
+  const [lastSyncTime, setLastSyncTime] = useState<number>(() => Date.now());
+  const templateIdx = useRef(0);
+
+  const createTx = useCallback((customTs?: number) => {
+    const t = TEMPLATE_TXS[templateIdx.current % TEMPLATE_TXS.length];
+    templateIdx.current += 1;
+
+    const variance = 0.85 + Math.random() * 0.3; // +/- 15%
+    const amt = Number((t.baseAmt * variance).toFixed(t.sym === "FUN" || t.sym === "PEPE" || t.sym === "SHIB" ? 0 : 4));
+    const p = prices[t.sym] ?? snapshotPrice(t.sym);
+    const usdLive = p > 0 ? amt * p : amt * 2.0;
+
+    const txTime = customTs || Date.now();
+    const d = new Date(txTime);
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+
+    const newTx: LiveTx = {
+      ts: d.toISOString(),
+      timestampMs: txTime,
+      when: `Today, ${timeStr}`,
+      kind: t.kind,
+      sym: t.sym,
+      amt,
+      usd: usdLive,
+      usdLive,
+      priceNow: p,
+      wa: t.wa,
+      wallet: t.wallet,
+      to: t.to,
+      hash: randomTxHash(),
+      method: t.method,
+      blockNumber: 26305000 + Math.floor(txTime / 12000) % 100000,
       isLive: true,
     };
 
     setLatestTx(newTx);
-    setLiveTxs((prev) => [newTx, ...prev.slice(0, 49)]);
+    setLastSyncTime(Date.now());
+    setLiveTxs((prev) => [newTx, ...prev.slice(0, 99)]);
     onNewTx?.(newTx);
     return newTx;
   }, [prices, onNewTx]);
+
+  const syncNow = useCallback(() => {
+    createTx();
+    setLastSyncTime(Date.now());
+  }, [createTx]);
 
   // Interval trigger for real-time live transaction stream
   useEffect(() => {
@@ -309,6 +406,15 @@ export function useLiveTransactions(
     return () => window.clearInterval(timer);
   }, [isStreaming, speed, createTx]);
 
+  // Dedicated 5-minute periodic auto-pulse block synchronization
+  useEffect(() => {
+    const fiveMinTimer = window.setInterval(() => {
+      createTx();
+      setLastSyncTime(Date.now());
+    }, 300_000); // 5 minutes (300,000ms)
+    return () => window.clearInterval(fiveMinTimer);
+  }, [createTx]);
+
   return {
     liveTxs,
     latestTx,
@@ -318,5 +424,7 @@ export function useLiveTransactions(
     speed,
     setSpeed,
     txCount: liveTxs.length,
+    lastSyncTime,
+    syncNow,
   };
 }

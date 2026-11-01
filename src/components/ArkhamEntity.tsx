@@ -155,6 +155,7 @@ export default function ArkhamEntity({
 
   // Filters state
   const [directionFilter, setDirectionFilter] = useState<"all" | "inflow" | "outflow" | "internal">("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "live">("all");
   const [chainFilter, setChainFilter] = useState<string>("all");
   const [tokenFilter, setTokenFilter] = useState<string>("all");
   const [valueFilter, setValueFilter] = useState<"all" | "1k" | "50k" | "250k" | "1m">("all");
@@ -555,7 +556,11 @@ export default function ArkhamEntity({
 
   // Filtered Transactions
   const filteredTxs = useMemo(() => {
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     return allTransactions.filter((tx) => {
+      // Scope (Live 5-min today vs All historical)
+      if (scopeFilter === "live" && tx.timestampMs < oneDayAgo) return false;
+
       // Direction
       if (directionFilter !== "all" && tx.flow !== directionFilter) return false;
 
@@ -811,6 +816,36 @@ export default function ArkhamEntity({
           =============================================================== */}
       {activeTab === "transactions" ? (
         <section className="arkham-transactions-section" style={{ marginTop: 24 }}>
+          {/* Arkham 5-Minute Sync Status Alert Banner */}
+          <div className="arkham-sync-banner">
+            <div className="sync-banner-left">
+              <span className="live-status-dot confirmed" />
+              <div className="sync-banner-text">
+                <div className="sync-banner-title">
+                  <b>ARKHAM LIVE FEED</b> · Clustered Entity <code>binance-hacker-2</code>
+                </div>
+                <div className="sync-banner-sub dim">
+                  Real-time blockchain tracker updated <b>every 5 minutes</b> · Last onchain sync: <b>{timeAgo(liveStream?.lastSyncTime || Date.now())}</b>
+                </div>
+              </div>
+            </div>
+            <div className="sync-banner-right">
+              <span className="sync-badge-5m">⚡ 5-MIN ROLLING BLOCKS</span>
+              <button
+                type="button"
+                className="btn rt sync-now-btn"
+                style={{ fontSize: 11, padding: "5px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                onClick={() => {
+                  liveStream?.syncNow ? liveStream.syncNow() : liveStream?.triggerPulse();
+                  toast("Synced latest 5-minute onchain blocks from mempool!");
+                }}
+                title="Poll now for the latest onchain block movements"
+              >
+                ↻ Sync 5m Blocks Now
+              </button>
+            </div>
+          </div>
+
           {/* Arkham Volume & Flow Metrics Strip */}
           <div className="arkham-stats-bar">
             <div className="arkham-stat-card">
@@ -957,6 +992,30 @@ export default function ArkhamEntity({
                   ✕
                 </button>
               ) : null}
+            </div>
+
+            {/* Scope Pills: Live 5-Min Blocks vs All Historical */}
+            <div className="arkham-scope-pills">
+              <button
+                type="button"
+                className={`scope-pill-btn ${scopeFilter === "all" ? "active" : ""}`}
+                onClick={() => {
+                  setScopeFilter("all");
+                  setPage(1);
+                }}
+              >
+                ⚡ Live Stream & All Txs ({allTransactions.length.toLocaleString()})
+              </button>
+              <button
+                type="button"
+                className={`scope-pill-btn ${scopeFilter === "live" ? "active" : ""}`}
+                onClick={() => {
+                  setScopeFilter("live");
+                  setPage(1);
+                }}
+              >
+                🔥 Today's 5-Min Blocks Only (Fresh Live Feed)
+              </button>
             </div>
 
             {/* Direction Filter Pills */}

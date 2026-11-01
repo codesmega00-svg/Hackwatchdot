@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import seedData from "../src/data/seed.json";
 import targetTxsData from "../src/data/target_txs.json";
+import { buildInitialRecentTxs, randomTxHash } from "../src/lib/useLive";
 
 describe("Arkham Intelligence Explorer (binance-hacker-2)", () => {
   it("merges seed.history and target_txs without duplicates into 1,590+ onchain transactions", () => {
@@ -97,4 +98,30 @@ describe("Arkham Intelligence Explorer (binance-hacker-2)", () => {
     const whales = txs.filter((t) => t.usd >= 1000000);
     expect(whales.length).toBe(2);
   });
+
+  it("populates rolling recent live transactions updated every 3-5 minutes from today", () => {
+    const mockPrices = { ETH: 2500, USDT: 1.0, BTC: 68000, PEPE: 0.0000095 };
+    const recent = buildInitialRecentTxs(mockPrices);
+
+    expect(recent.length).toBeGreaterThanOrEqual(15);
+    const now = Date.now();
+
+    // Check timestamps are recent (within 2 hours, not 2 days)
+    for (const tx of recent) {
+      expect(tx.timestampMs).toBeLessThanOrEqual(now);
+      expect(now - tx.timestampMs).toBeLessThan(130 * 60 * 1000); // under 130 minutes
+      expect(tx.hash.startsWith("0x")).toBe(true);
+      expect(tx.hash.length).toBe(66);
+      expect(tx.usdLive).toBeGreaterThan(0);
+    }
+
+    // Verify unique hashes
+    const hashes = new Set(recent.map((r: { hash: string }) => r.hash));
+    expect(hashes.size).toBe(recent.length);
+
+    // Verify randomTxHash produces 66-char hex string
+    const testHash = randomTxHash();
+    expect(testHash).toMatch(/^0x[0-9a-f]{64}$/);
+  });
 });
+
