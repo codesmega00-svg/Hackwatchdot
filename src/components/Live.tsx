@@ -164,6 +164,51 @@ export default function Live({
         {sel ? <SearchResult t={sel} onOpenToken={onOpenToken} toast={toast} /> : null}
       </div>
 
+      {/* Live View Navigation & Arkham Real-Time Explorer Shortcut */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "14px 0 18px", flexWrap: "wrap" }}>
+        <a
+          href="#arkham-entity-live-explorer"
+          className="btn rt"
+          style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, padding: "7px 14px" }}
+        >
+          <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fd69c" }} />
+          ⚡ Arkham Live Explorer (1,600+ Txs)
+        </a>
+        <a
+          href="#wallet-live-feed"
+          className="btn ghost"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px" }}
+        >
+          🎯 Target Mempool Feed
+        </a>
+        <a
+          href="#monitored-targets"
+          className="btn ghost"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px" }}
+        >
+          🏷️ Monitored Targets
+        </a>
+        <a
+          href="https://arkm.com/explorer/entity/binance-hacker-2"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn ghost"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            padding: "7px 14px",
+            marginLeft: "auto",
+            color: "#3fd69c",
+            borderColor: "rgba(63, 214, 156, 0.4)",
+          }}
+          title="Open official Binance Hacker 2 entity on Arkham Intelligence"
+        >
+          Official Arkham Entity ↗
+        </a>
+      </div>
+
       {/* Dedicated Real-Time Fast Wallet Live Feed (Placed on Top) */}
       <LiveWalletFeed
         defaultAddress={selectedTarget || "0x80d04079ffc53eb14edbeeb37279d126f45552df"}

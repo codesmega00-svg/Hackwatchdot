@@ -774,7 +774,7 @@ export default function LiveWalletFeed({
                   <div style={{ color: "var(--text)" }}>{tx.valueEth} ETH</div>
                 </div>
               </div>
-              <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <a
                   href={txUrl(tx.hash)}
                   target="_blank"
@@ -783,6 +783,15 @@ export default function LiveWalletFeed({
                   style={{ fontSize: 11, padding: "3px 10px" }}
                 >
                   Open in Etherscan ↗
+                </a>
+                <a
+                  href={`https://arkm.com/explorer/tx/${tx.hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn ghost"
+                  style={{ fontSize: 11, padding: "3px 10px", color: "#3fd69c", borderColor: "rgba(63, 214, 156, 0.4)" }}
+                >
+                  Open in Arkham ↗
                 </a>
                 <button
                   type="button"

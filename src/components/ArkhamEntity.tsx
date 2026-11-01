@@ -1336,31 +1336,54 @@ export default function ArkhamEntity({
                         {/* 1. Tx Hash + Block */}
                         <td>
                           <div className="tx-hash-cell">
-                            <a
-                              href={getExplorerTxUrl(tx.hash, tx.chain, tx.sym)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="arkham-tx-link"
-                              onClick={(e) => e.stopPropagation()}
-                              title={`View on Explorer (${tx.chain})`}
-                            >
-                              <span className="mono">{shortHash(tx.hash)}</span> ↗
-                            </a>
-                            <button
-                              type="button"
-                              className="arkham-copy-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyToClipboard(tx.hash, "Tx Hash");
-                              }}
-                              title="Copy Full Transaction Hash"
-                              aria-label="Copy Hash"
-                            >
-                              {copiedKey === tx.hash ? "✓" : "⎘"}
-                            </button>
-                            <span className="arkham-block-pill" title={`Block #${tx.blockNumber}`}>
-                              #{tx.blockNumber.toLocaleString()}
-                            </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <a
+                                href={getExplorerTxUrl(tx.hash, tx.chain, tx.sym)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="arkham-tx-link"
+                                onClick={(e) => e.stopPropagation()}
+                                title={`View confirmed on ${tx.chain} explorer`}
+                              >
+                                <span className="mono">{shortHash(tx.hash)}</span> ↗
+                              </a>
+                              <a
+                                href={`https://arkm.com/explorer/tx/${tx.hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="arkham-tx-link"
+                                onClick={(e) => e.stopPropagation()}
+                                title="View on Arkham Intelligence"
+                                style={{
+                                  fontSize: 10,
+                                  color: "#3fd69c",
+                                  padding: "1px 5px",
+                                  borderRadius: 3,
+                                  background: "rgba(63, 214, 156, 0.12)",
+                                  border: "1px solid rgba(63, 214, 156, 0.3)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Arkham ↗
+                              </a>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                              <button
+                                type="button"
+                                className="arkham-copy-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(tx.hash, "Tx Hash");
+                                }}
+                                title="Copy Full Transaction Hash"
+                                aria-label="Copy Hash"
+                              >
+                                {copiedKey === tx.hash ? "✓" : "⎘"}
+                              </button>
+                              <span className="arkham-block-pill" title={`Block #${tx.blockNumber}`}>
+                                #{tx.blockNumber.toLocaleString()}
+                              </span>
+                            </div>
                           </div>
                         </td>
 
@@ -1704,9 +1727,9 @@ export default function ArkhamEntity({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn ghost"
-                      style={{ fontSize: 11, padding: "6px 14px", flex: 1, textAlign: "center" }}
+                      style={{ fontSize: 11, padding: "6px 14px", flex: 1, textAlign: "center", color: "#3fd69c", borderColor: "rgba(63, 214, 156, 0.4)" }}
                     >
-                      View on Arkham ↗
+                      View on Arkham Intelligence ↗
                     </a>
                     <button
                       type="button"

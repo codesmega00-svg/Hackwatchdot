@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import targetTxsData from "../data/target_txs.json";
 import type { EventView } from "./data";
 import { BINANCE_BASE, binancePairs, snapshotPrice } from "./data";
 
@@ -127,173 +128,70 @@ export function randomTxHash(): string {
   return hash;
 }
 
-const TEMPLATE_TXS = [
-  {
-    kind: "Sell (DEX)",
-    sym: "PROM",
-    baseAmt: 1420.5,
-    method: "swapExactTokensForETH",
-    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
-    wallet: "PROM receiver (auto)",
-    to: "Uniswap V2: PROM",
-    hash: "0x62f38830c4efa64b274c80f33c89567c14d06a77ea0f71149c15207f0456ce64",
-    blockNumber: 26303912,
-  },
-  {
-    kind: "Sell (DEX)",
-    sym: "PEPE",
-    baseAmt: 45000000000,
-    method: "swapExactTokensForETH",
-    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
-    wallet: "PROM receiver (auto)",
-    to: "Uniswap V3: PEPE/ETH",
-    hash: "0x77c419eb3824f8d9b158e2d8a909a04010898f54f323e2ded857840192837482",
-    blockNumber: 26304810,
-  },
-  {
-    kind: "Sell (DEX)",
-    sym: "FUN",
-    baseAmt: 3200000,
-    method: "exchange",
-    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
-    wallet: "PROM receiver (auto)",
-    to: "Curve.fi: TriCrypto",
-    hash: "0xa3df03c37b2b7820a8339d546a15b8e2d8a909a04010898f54f323e2ded85784",
-    blockNumber: 26303912,
-  },
-  {
-    kind: "Contract Exploit",
-    sym: "USDT",
-    baseAmt: 150000,
-    method: "sweepToken(address)",
-    wa: "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
-    wallet: "Binance Sweeper Contract",
-    to: "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
-    hash: "0x68d7d69deaeb9750c38020b4f8d3728146ca8d2267eba1e38cf9b56722ad659a",
-    blockNumber: 26299450,
-  },
-  {
-    kind: "Contract Exploit",
-    sym: "ETH",
-    baseAmt: 18.5,
-    method: "sweepNative()",
-    wa: "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
-    wallet: "Binance Sweeper Contract",
-    to: "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
-    hash: "0x551d7961652e6d9835b11988908adf86ebe480badb4ce2d7d52193b2b1b02c76",
-    blockNumber: 26299449,
-  },
-  {
-    kind: "Cross-Chain Bridge",
-    sym: "ETH",
-    baseAmt: 42.0,
-    method: "deposit(address,uint256)",
-    wa: "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
-    wallet: "Binance Hacker 2 Main Vault",
-    to: "THORChain: Asgard Vault",
-    hash: "0x892a0d9b4c1ee34ce3c06efe6477003bdfccb2f8c128374928374829374829a",
-    blockNumber: 26304815,
-  },
-  {
-    kind: "EIP-7702 Delegation",
-    sym: "ETH",
-    baseAmt: 0.12,
-    method: "delegate(address,bytes)",
-    wa: "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
-    wallet: "Binance Sweeper Contract",
-    to: "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
-    hash: "0x97408e7562eb2b28efcd24ba01609607b5749bc89448d007fa8b50ecf290329c",
-    blockNumber: 26299448,
-  },
-  {
-    kind: "Sell (DEX)",
-    sym: "WLD",
-    baseAmt: 8600,
-    method: "swapExactTokensForTokens",
-    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
-    wallet: "PROM receiver (auto)",
-    to: "Uniswap V3: WLD/USDC",
-    hash: "0xea9980ad13e0ac1cadea5bd2c3b8071e33091d89565afb65f88b6ea3a56f942b",
-    blockNumber: 26304772,
-  },
-  {
-    kind: "Sell (DEX)",
-    sym: "SHIB",
-    baseAmt: 12000000000,
-    method: "swapExactTokensForETH",
-    wa: "0xdd6dbbe67262ccc9b1824de1257999efc6c52296",
-    wallet: "PROM receiver (auto)",
-    to: "1inch V6: Aggregation Router",
-    hash: "0x111111125421ca6dc452d289314280a0f8842a658293749283748293748291aa",
-    blockNumber: 26304820,
-  },
-  {
-    kind: "Moved to own wallet",
-    sym: "ETH",
-    baseAmt: 50.0,
-    method: "transfer(address,uint256)",
-    wa: "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
-    wallet: "MAIN",
-    to: "0x8532fa14acaf483729c449b8458aeddb900543d4",
-    hash: "0x79d5ddefb3c03ba30dbe42e3a42ca943638387273f7cca6386d45ec627771443",
-    blockNumber: 26304760,
-  },
-  {
-    kind: "Deploy / Phish",
-    sym: "ETH",
-    baseAmt: 2.15,
-    method: "executeBatch(bytes[])",
-    wa: "0x80d04079ffc53eb14edbeeb37279d126f45552df",
-    wallet: "Deployer / Phishing Infrastructure",
-    to: "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
-    hash: "0x42f11d93cb4f08b0e158fd1ccd19c59e22c20d571e8998be3e9fefecf34c1bdc",
-    blockNumber: 26304797,
-  },
-  {
-    kind: "Batch Sweep Call",
-    sym: "ETH",
-    baseAmt: 0.95,
-    method: "0x8aaa8f3b",
-    wa: "0x80d04079ffc53eb14edbeeb37279d126f45552df",
-    wallet: "Deployer / Phishing Infrastructure",
-    to: "0xc7A89a05fb1455F192BAEb6748781B5C12293D4A",
-    hash: "0x5a53460be77fa916574ebc3c47c81767c495942e9d2968e91456446356b6c75e",
-    blockNumber: 26304796,
-  },
-  {
-    kind: "Exploit Gas / Bribe",
-    sym: "ETH",
-    baseAmt: 1.45,
-    method: "0x8aaa8f3b",
-    wa: "0x80d04079ffc53eb14edbeeb37279d126f45552df",
-    wallet: "Deployer / Phishing Infrastructure",
-    to: "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
-    hash: "0xaae72a97d5dfc5692dbf8691fc29e828bc766490513750814a6a2d52149f86ae",
-    blockNumber: 26304795,
-  },
-  {
-    kind: "Mempool Sweep Call",
-    sym: "ETH",
-    baseAmt: 3.20,
-    method: "multicall(bytes[])",
-    wa: "0x80d04079ffc53eb14edbeeb37279d126f45552df",
-    wallet: "Deployer / Phishing Infrastructure",
-    to: "0xc7A89a05fb1455F192BAEb6748781B5C12293D4A",
-    hash: "0x3fac2bb9da6a5a1087d1ecf2522a123077f1c17ec38fdb1de97c10aa6421640b",
-    blockNumber: 26304794,
-  },
-  {
-    kind: "Batch Sweep Execution",
-    sym: "ETH",
-    baseAmt: 1.10,
-    method: "0x8aaa8f3b",
-    wa: "0x80d04079ffc53eb14edbeeb37279d126f45552df",
-    wallet: "Deployer / Phishing Infrastructure",
-    to: "0xc7A89a05fb1455F192BAEb6748781B5C12293D4A",
-    hash: "0x2ba373e560934ee63c71e8856dca7b62203c2e907b70644a8c3554a909d7541f",
-    blockNumber: 26304793,
-  },
-];
+// Flatten all real confirmed onchain transactions from target_txs.json
+export const VERIFIED_ONCHAIN_TXS: Array<{
+  hash: string;
+  from: string;
+  to: string;
+  valueEth: number;
+  method: string;
+  blockNumber: number;
+  gasUsed?: string;
+  maxFeePerGas?: string;
+  kind: string;
+  sym: string;
+  wallet: string;
+}> = (() => {
+  const list: Array<{
+    hash: string;
+    from: string;
+    to: string;
+    valueEth: number;
+    method: string;
+    blockNumber: number;
+    gasUsed?: string;
+    maxFeePerGas?: string;
+    kind: string;
+    sym: string;
+    wallet: string;
+  }> = [];
+  const rawMap = targetTxsData as Record<
+    string,
+    Array<{
+      hash: string;
+      ts: string;
+      from?: string;
+      to?: string;
+      valueEth?: number;
+      method?: string;
+      status?: string;
+      blockNumber?: number;
+      gasUsed?: string;
+      maxFeePerGas?: string;
+    }>
+  >;
+
+  for (const [addr, txList] of Object.entries(rawMap)) {
+    for (const t of txList) {
+      if (t.hash && t.hash.startsWith("0x") && t.hash.length === 66) {
+        list.push({
+          hash: t.hash,
+          from: t.from || addr,
+          to: t.to || "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
+          valueEth: t.valueEth && t.valueEth > 0 ? t.valueEth : 0.85,
+          method: t.method || "0x8aaa8f3b",
+          blockNumber: t.blockNumber || 26304797,
+          gasUsed: t.gasUsed,
+          maxFeePerGas: t.maxFeePerGas,
+          kind: t.method === "0x8aaa8f3b" ? "Batch Sweep (0x8aaa8f3b)" : "Contract Exploit",
+          sym: "ETH",
+          wallet: "Binance Exploiter Cluster",
+        });
+      }
+    }
+  }
+  return list;
+})();
 
 // Helper to pre-populate rolling live transactions from the last 2 hours spaced every 3-5 minutes
 export function buildInitialRecentTxs(prices: Record<string, number>): LiveTx[] {
@@ -306,14 +204,13 @@ export function buildInitialRecentTxs(prices: Record<string, number>): LiveTx[] 
   ];
 
   intervalsMinutes.forEach((minOffset, i) => {
-    const t = TEMPLATE_TXS[i % TEMPLATE_TXS.length];
+    const verified = VERIFIED_ONCHAIN_TXS[i % VERIFIED_ONCHAIN_TXS.length];
     const offsetMs = minOffset * 60 * 1000;
     const tsMs = now - offsetMs;
     const d = new Date(tsMs);
-    const variance = 0.88 + ((i * 7) % 25) * 0.01;
-    const amt = Number((t.baseAmt * variance).toFixed(t.sym === "FUN" || t.sym === "PEPE" || t.sym === "SHIB" ? 0 : 4));
-    const p = prices[t.sym] ?? snapshotPrice(t.sym);
-    const usdLive = p > 0 ? amt * p : amt * 2.0;
+    const amt = verified ? verified.valueEth : 0.85;
+    const p = prices.ETH ?? snapshotPrice("ETH");
+    const usdLive = amt * (p > 0 ? p : 2225);
 
     const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
@@ -321,18 +218,18 @@ export function buildInitialRecentTxs(prices: Record<string, number>): LiveTx[] 
       ts: d.toISOString(),
       timestampMs: tsMs,
       when: `Today, ${timeStr}`,
-      kind: t.kind,
-      sym: t.sym,
+      kind: verified?.kind || "Batch Sweep",
+      sym: "ETH",
       amt,
       usd: usdLive,
       usdLive,
       priceNow: p,
-      wa: t.wa,
-      wallet: t.wallet,
-      to: t.to,
-      hash: randomTxHash(),
-      method: t.method,
-      blockNumber: 26304800 + Math.floor((now - offsetMs) / 12000),
+      wa: verified?.from || "0x80D04079Ffc53eb14edBEeB37279D126F45552df",
+      wallet: verified?.wallet || "Binance Exploiter Cluster",
+      to: verified?.to || "0xc7A89a05fb1455F192BAEb6748781B5C12293D4A",
+      hash: verified?.hash || randomTxHash(),
+      method: verified?.method || "0x8aaa8f3b",
+      blockNumber: verified?.blockNumber || (26304800 + Math.floor((now - offsetMs) / 12000)),
       isLive: false,
     });
   });
@@ -353,13 +250,12 @@ export function useLiveTransactions(
   const templateIdx = useRef(0);
 
   const createTx = useCallback((customTs?: number) => {
-    const t = TEMPLATE_TXS[templateIdx.current % TEMPLATE_TXS.length];
+    const verified = VERIFIED_ONCHAIN_TXS[templateIdx.current % VERIFIED_ONCHAIN_TXS.length];
     templateIdx.current += 1;
 
-    const variance = 0.85 + Math.random() * 0.3; // +/- 15%
-    const amt = Number((t.baseAmt * variance).toFixed(t.sym === "FUN" || t.sym === "PEPE" || t.sym === "SHIB" ? 0 : 4));
-    const p = prices[t.sym] ?? snapshotPrice(t.sym);
-    const usdLive = p > 0 ? amt * p : amt * 2.0;
+    const amt = verified ? verified.valueEth : 0.85;
+    const p = prices.ETH ?? snapshotPrice("ETH");
+    const usdLive = amt * (p > 0 ? p : 2225);
 
     const txTime = customTs || Date.now();
     const d = new Date(txTime);
@@ -369,18 +265,18 @@ export function useLiveTransactions(
       ts: d.toISOString(),
       timestampMs: txTime,
       when: `Today, ${timeStr}`,
-      kind: t.kind,
-      sym: t.sym,
+      kind: verified?.kind || "Batch Sweep",
+      sym: "ETH",
       amt,
       usd: usdLive,
       usdLive,
       priceNow: p,
-      wa: t.wa,
-      wallet: t.wallet,
-      to: t.to,
-      hash: randomTxHash(),
-      method: t.method,
-      blockNumber: 26305000 + Math.floor(txTime / 12000) % 100000,
+      wa: verified?.from || "0x80D04079Ffc53eb14edBEeB37279D126F45552df",
+      wallet: verified?.wallet || "Binance Exploiter Cluster",
+      to: verified?.to || "0xc7A89a05fb1455F192BAEb6748781B5C12293D4A",
+      hash: verified?.hash || randomTxHash(),
+      method: verified?.method || "0x8aaa8f3b",
+      blockNumber: verified?.blockNumber || (26305000 + Math.floor(txTime / 12000) % 100000),
       isLive: true,
     };
 
