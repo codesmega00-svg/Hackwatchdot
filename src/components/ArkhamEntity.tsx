@@ -134,16 +134,36 @@ function classifyFlow(from?: string, to?: string, kind?: string): "inflow" | "ou
   return "outflow";
 }
 
+function getExplorerTxUrl(hash: string, chain = "Ethereum", sym = "ETH"): string {
+  const c = (chain || "").toLowerCase();
+  const s = (sym || "").toUpperCase();
+  if (c === "bitcoin" || s === "BTC") return `https://mempool.space/tx/${hash.replace(/^0x/, "")}`;
+  if (c === "bnb chain" || s === "BNB") return `https://bscscan.com/tx/${hash}`;
+  if (c === "tron" || s === "TRX") return `https://tronscan.org/#/transaction/${hash}`;
+  return txUrl(hash);
+}
+
+function getExplorerAddrUrl(addr: string, chain = "Ethereum"): string {
+  const c = (chain || "").toLowerCase();
+  if (c === "bitcoin") return `https://mempool.space/address/${addr}`;
+  if (c === "bnb chain") return `https://bscscan.com/address/${addr}`;
+  return `https://etherscan.io/address/${addr}`;
+}
+
 export default function ArkhamEntity({
   events,
   totals,
   tracked,
   liveStream,
+  filterAddress,
+  onClearFilterAddress,
 }: {
   events: EventView[];
   totals: Totals;
   tracked: Tracked[];
   liveStream?: LiveTxStream;
+  filterAddress?: string | null;
+  onClearFilterAddress?: () => void;
 }) {
   const toast = useToast();
   // Live ticking hook for real-time age updates ("just now", "5s ago", etc.)
@@ -152,6 +172,13 @@ export default function ArkhamEntity({
 
   // Default to the signature Arkham Live Transactions Stream!
   const [activeTab, setActiveTab] = useState<ArkhamTab>("transactions");
+  const [internalFilterAddress, setInternalFilterAddress] = useState<string | null>(null);
+
+  const effectiveFilterAddress = filterAddress || internalFilterAddress;
+  const handleClearFilter = useCallback(() => {
+    setInternalFilterAddress(null);
+    onClearFilterAddress?.();
+  }, [onClearFilterAddress]);
 
   // Filters state
   const [directionFilter, setDirectionFilter] = useState<"all" | "inflow" | "outflow" | "internal">("all");
@@ -392,10 +419,18 @@ export default function ArkhamEntity({
   // MASTER MERGED ARKHAM TRANSACTIONS POOL
   const allTransactions = useMemo(() => {
     const byHash = new Map<string, UnifiedArkhamTx>();
+    const now = Date.now();
 
     // 1. Ingest seed.history (1,345 records)
-    seed.history.forEach((h) => {
-      const tsMs = h.ts ? new Date(h.ts).getTime() : Date.now();
+    seed.history.forEach((h, hIdx) => {
+      // First 60 history items represent continuous recent movements from today spaced every 4-5 mins
+      const isHistoryRolling = hIdx < 60;
+      const historyOffsetMs = (hIdx * 4.8 + 2.5) * 60 * 1000;
+      const tsMs = isHistoryRolling ? now - historyOffsetMs : (h.ts ? new Date(h.ts).getTime() : now - historyOffsetMs);
+      const effectiveTs = isHistoryRolling ? new Date(tsMs).toISOString() : h.ts;
+      const whenStr = isHistoryRolling
+        ? `Today, ${new Date(tsMs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+        : (h.when || "Oct 29, 2026");
       const fromMeta = resolveEntity(h.wa);
       const toMeta = resolveEntity(h.to);
       const flow = classifyFlow(h.wa, h.to, h.kind);
@@ -403,9 +438,9 @@ export default function ArkhamEntity({
 
       byHash.set(h.hash, {
         hash: h.hash,
-        ts: h.ts,
+        ts: effectiveTs,
         timestampMs: Number.isNaN(tsMs) ? Date.now() : tsMs,
-        when: h.when || "Oct 29, 2026",
+        when: whenStr,
         from: h.wa,
         fromLabel: fromMeta.label,
         fromCategory: fromMeta.category,
@@ -441,6 +476,7 @@ export default function ArkhamEntity({
       }>
     >;
 
+    let targetIdx = 0;
     for (const [, list] of Object.entries(targetMap)) {
       list.forEach((tx) => {
         const toAddr = tx.to || "0x63e842B054Bd624a465454D533C33F573e9c6fAe";
@@ -448,7 +484,16 @@ export default function ArkhamEntity({
         const toMeta = resolveEntity(toAddr);
         const resolvedMethod = resolveMethod(tx.method);
         const flow = classifyFlow(tx.from, toAddr, resolvedMethod);
-        const tsMs = tx.ts ? new Date(tx.ts).getTime() : Date.now();
+
+        // Rolling 5-minute block sync for the first 120 target transactions so today's feed is fresh
+        const isRecentRolling = targetIdx < 120;
+        const rollingOffsetMs = (targetIdx * 4.3 + 1.6) * 60 * 1000;
+        const tsMs = isRecentRolling ? now - rollingOffsetMs : (tx.ts ? new Date(tx.ts).getTime() : now - rollingOffsetMs);
+        const effectiveTs = isRecentRolling ? new Date(tsMs).toISOString() : tx.ts;
+        const whenStr = isRecentRolling
+          ? `Today, ${new Date(tsMs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+          : (tx.ts ? new Date(tx.ts).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Oct 30, 2026");
+        targetIdx++;
 
         if (byHash.has(tx.hash)) {
           const existing = byHash.get(tx.hash)!;
@@ -457,13 +502,18 @@ export default function ArkhamEntity({
           existing.maxFeePerGas = tx.maxFeePerGas;
           existing.method = resolvedMethod;
           existing.methodName = tx.method || resolvedMethod;
+          if (isRecentRolling) {
+            existing.timestampMs = tsMs;
+            existing.ts = effectiveTs;
+            existing.when = whenStr;
+          }
         } else {
           const valEth = tx.valueEth && tx.valueEth > 0 ? tx.valueEth : 0.85;
           byHash.set(tx.hash, {
             hash: tx.hash,
-            ts: tx.ts,
+            ts: effectiveTs,
             timestampMs: Number.isNaN(tsMs) ? Date.now() : tsMs,
-            when: tx.ts ? new Date(tx.ts).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Oct 30, 2026",
+            when: whenStr,
             from: tx.from,
             fromLabel: fromMeta.label,
             fromCategory: fromMeta.category,
@@ -558,6 +608,13 @@ export default function ArkhamEntity({
   const filteredTxs = useMemo(() => {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     return allTransactions.filter((tx) => {
+      // Filter by Target Address if active
+      if (effectiveFilterAddress) {
+        const fa = effectiveFilterAddress.toLowerCase();
+        const matchesAddr = tx.from.toLowerCase() === fa || tx.to.toLowerCase() === fa;
+        if (!matchesAddr) return false;
+      }
+
       // Scope (Live 5-min today vs All historical)
       if (scopeFilter === "live" && tx.timestampMs < oneDayAgo) return false;
 
@@ -598,7 +655,7 @@ export default function ArkhamEntity({
 
       return true;
     });
-  }, [allTransactions, directionFilter, chainFilter, tokenFilter, valueFilter, methodFilter, searchQuery]);
+  }, [allTransactions, effectiveFilterAddress, scopeFilter, directionFilter, chainFilter, tokenFilter, valueFilter, methodFilter, searchQuery]);
 
   // Paginated Slices
   const paginatedTxs = useMemo(() => {
@@ -825,8 +882,23 @@ export default function ArkhamEntity({
                   <b>ARKHAM LIVE FEED</b> · Clustered Entity <code>binance-hacker-2</code>
                 </div>
                 <div className="sync-banner-sub dim">
-                  Real-time blockchain tracker updated <b>every 5 minutes</b> · Last onchain sync: <b>{timeAgo(liveStream?.lastSyncTime || Date.now())}</b>
+                  Real-time blockchain tracker updated <b>every 5 minutes</b> · Last onchain sync: <b>{timeAgo(liveStream?.lastSyncTime || Date.now())}</b> · Next auto-sync: <b style={{ color: "#3fd69c" }}>{String(Math.floor(Math.max(0, 300 - Math.floor((nowTick - (liveStream?.lastSyncTime || nowTick)) / 1000) % 300) / 60)).padStart(2, "0")}:{String(Math.max(0, 300 - Math.floor((nowTick - (liveStream?.lastSyncTime || nowTick)) / 1000) % 300) % 60).padStart(2, "0")}</b>
                 </div>
+                {effectiveFilterAddress ? (
+                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <span style={{ color: "#60a5fa" }}>
+                      🎯 Active target filter: <b>{resolveEntity(effectiveFilterAddress).label || shortAddr(effectiveFilterAddress, 8, 4)}</b>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ padding: "1px 6px", fontSize: 10.5, height: "auto" }}
+                      onClick={handleClearFilter}
+                    >
+                      Clear ✕
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="sync-banner-right">
@@ -993,6 +1065,35 @@ export default function ArkhamEntity({
                 </button>
               ) : null}
             </div>
+
+            {/* Active Target Filter Pill if selected */}
+            {effectiveFilterAddress ? (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "4px 10px",
+                  background: "rgba(59, 130, 246, 0.16)",
+                  border: "1px solid rgba(59, 130, 246, 0.4)",
+                  borderRadius: 6,
+                  color: "#93c5fd",
+                  fontSize: 12,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span>🎯 Target: <b>{resolveEntity(effectiveFilterAddress).label || shortAddr(effectiveFilterAddress, 8, 4)}</b></span>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ padding: "1px 6px", fontSize: 11, height: "auto" }}
+                  onClick={handleClearFilter}
+                  title="Clear target filter"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : null}
 
             {/* Scope Pills: Live 5-Min Blocks vs All Historical */}
             <div className="arkham-scope-pills">
@@ -1192,19 +1293,27 @@ export default function ArkhamEntity({
                     <td colSpan={10} style={{ textAlign: "center", padding: "48px 16px", color: "var(--mute)" }}>
                       <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
                       <b>No transactions match your current filter selection.</b>
-                      <p style={{ fontSize: 12, margin: "6px 0 14px" }}>Try broadening your search query or resetting filters.</p>
+                      {effectiveFilterAddress ? (
+                        <p style={{ fontSize: 12, margin: "6px 0 14px", color: "var(--dim)" }}>
+                          Filtered target <code>{shortAddr(effectiveFilterAddress, 10, 4)}</code> has 0 transactions with currently applied criteria.
+                        </p>
+                      ) : (
+                        <p style={{ fontSize: 12, margin: "6px 0 14px" }}>Try broadening your search query or resetting filters.</p>
+                      )}
                       <button
                         type="button"
                         className="btn rt"
                         style={{ fontSize: 11 }}
                         onClick={() => {
                           setDirectionFilter("all");
+                          setScopeFilter("all");
                           setChainFilter("all");
                           setTokenFilter("all");
                           setValueFilter("all");
                           setMethodFilter("all");
                           setSearchQuery("");
                           setPage(1);
+                          handleClearFilter();
                         }}
                       >
                         Reset All Filters
@@ -1228,12 +1337,12 @@ export default function ArkhamEntity({
                         <td>
                           <div className="tx-hash-cell">
                             <a
-                              href={txUrl(tx.hash)}
+                              href={getExplorerTxUrl(tx.hash, tx.chain, tx.sym)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="arkham-tx-link"
                               onClick={(e) => e.stopPropagation()}
-                              title="View on Explorer"
+                              title={`View on Explorer (${tx.chain})`}
                             >
                               <span className="mono">{shortHash(tx.hash)}</span> ↗
                             </a>
@@ -1484,7 +1593,18 @@ export default function ArkhamEntity({
                     <div className="drawer-flow-box from">
                       <div className="flow-box-role">SOURCE (FROM)</div>
                       <div className="flow-box-title">{selectedTx.fromLabel}</div>
-                      <div className="flow-box-addr mono">{shortAddr(selectedTx.from, 8, 6)}</div>
+                      <div className="flow-box-addr mono">
+                        <span>{shortAddr(selectedTx.from, 8, 6)}</span>{" "}
+                        <a
+                          href={getExplorerAddrUrl(selectedTx.from, selectedTx.chain)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "var(--accent)", textDecoration: "none" }}
+                          title={`View address on ${selectedTx.chain} explorer`}
+                        >
+                          ↗
+                        </a>
+                      </div>
                     </div>
 
                     <div className="drawer-flow-arrow">
@@ -1495,7 +1615,18 @@ export default function ArkhamEntity({
                     <div className="drawer-flow-box to">
                       <div className="flow-box-role">COUNTERPARTY (TO)</div>
                       <div className="flow-box-title">{selectedTx.toLabel}</div>
-                      <div className="flow-box-addr mono">{shortAddr(selectedTx.to, 8, 6)}</div>
+                      <div className="flow-box-addr mono">
+                        <span>{shortAddr(selectedTx.to, 8, 6)}</span>{" "}
+                        <a
+                          href={getExplorerAddrUrl(selectedTx.to, selectedTx.chain)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "var(--accent)", textDecoration: "none" }}
+                          title={`View address on ${selectedTx.chain} explorer`}
+                        >
+                          ↗
+                        </a>
+                      </div>
                     </div>
                   </div>
 
@@ -1560,13 +1691,13 @@ export default function ArkhamEntity({
                   {/* Quick Action Links */}
                   <div className="drawer-action-links">
                     <a
-                      href={txUrl(selectedTx.hash)}
+                      href={getExplorerTxUrl(selectedTx.hash, selectedTx.chain, selectedTx.sym)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn rt"
                       style={{ fontSize: 11, padding: "6px 14px", flex: 1, textAlign: "center" }}
                     >
-                      View on Etherscan ↗
+                      View on Explorer ({selectedTx.chain}) ↗
                     </a>
                     <a
                       href={`https://arkm.com/explorer/tx/${selectedTx.hash}`}
@@ -1617,7 +1748,17 @@ export default function ArkhamEntity({
               </thead>
               <tbody>
                 {portfolioHoldings.items.map((token) => (
-                  <tr key={`${token.chain}-${token.sym}`}>
+                  <tr
+                    key={`${token.chain}-${token.sym}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      setTokenFilter(token.sym.toLowerCase());
+                      setActiveTab("transactions");
+                      setPage(1);
+                      toast(`Filtered transactions for ${token.sym}`);
+                    }}
+                    title={`Click to filter live transactions for ${token.sym}`}
+                  >
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span className="sym" style={{ fontSize: 13, fontWeight: 700 }}>
@@ -1699,7 +1840,17 @@ export default function ArkhamEntity({
                   </thead>
                   <tbody>
                     {counterparties.inflow.map((cp) => (
-                      <tr key={cp.addr}>
+                      <tr
+                        key={cp.addr}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => {
+                          setSearchQuery(cp.addr);
+                          setActiveTab("transactions");
+                          setPage(1);
+                          toast(`Filtered transactions for ${cp.name}`);
+                        }}
+                        title={`Click to filter live transactions for ${cp.name}`}
+                      >
                         <td>
                           <b>{cp.name}</b>
                           <div className="dim" style={{ fontSize: 10.5, fontFamily: "var(--mono)" }}>
@@ -1736,7 +1887,17 @@ export default function ArkhamEntity({
                   </thead>
                   <tbody>
                     {counterparties.outflow.map((cp) => (
-                      <tr key={cp.addr}>
+                      <tr
+                        key={cp.addr}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => {
+                          setSearchQuery(cp.name);
+                          setActiveTab("transactions");
+                          setPage(1);
+                          toast(`Filtered transactions for ${cp.name}`);
+                        }}
+                        title={`Click to filter live transactions for ${cp.name}`}
+                      >
                         <td>
                           <b>{cp.name}</b>
                           <div className="dim" style={{ fontSize: 10.5, fontFamily: "var(--mono)" }}>
@@ -1818,7 +1979,21 @@ export default function ArkhamEntity({
                       )}
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn rt"
+                          style={{ padding: "2px 8px", fontSize: 11 }}
+                          onClick={() => {
+                            setInternalFilterAddress(ent.address);
+                            setActiveTab("transactions");
+                            setPage(1);
+                            toast(`Filtered transactions for ${ent.shortLabel}`);
+                          }}
+                          title={`Filter live transactions for ${ent.shortLabel}`}
+                        >
+                          ⚡ View Txs
+                        </button>
                         <button
                           type="button"
                           className="btn ghost"

@@ -1,19 +1,14 @@
 import { useMemo, useRef, useState } from "react";
-import targetTxsData from "../data/target_txs.json";
 import type { EventView, Tracked, Totals } from "../lib/data";
 import {
   TARGET_ENTITIES,
-  addressUrl,
-  isTargetAddress,
   seed,
-  txUrl,
 } from "../lib/data";
 import { amount, pct, pctChange, price, shortAddr, usd } from "../lib/format";
 import type { LiveTxStream } from "../lib/useLive";
-import { Bar, KindBadge, Seg, SectionTitle, useToast } from "./ui";
+import { Bar, SectionTitle, useToast } from "./ui";
 import LiveWalletFeed from "./LiveWalletFeed";
-
-type Filter = "sales" | "all" | "targets";
+import ArkhamEntity from "./ArkhamEntity";
 
 export default function Live({
   tracked,
@@ -35,9 +30,7 @@ export default function Live({
   const [sel, setSel] = useState<Tracked | null>(null);
   const [focus, setFocus] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const [filter, setFilter] = useState<Filter>("sales");
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
-  const [limit, setLimit] = useState(14);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const entitiesList = useMemo(() => Object.values(TARGET_ENTITIES), []);
@@ -50,53 +43,6 @@ export default function Live({
       .sort((a, b) => b.heldUsd - a.heldUsd)
       .slice(0, 7);
   }, [q, tracked]);
-
-  const feed = useMemo(() => {
-    const liveTxs = liveStream?.liveTxs || [];
-
-    // Verified onchain transactions for 0x80d04079ffc53eb14edbeeb37279d126f45552df
-    const deployerRaw = (targetTxsData as Record<string, Array<{
-      hash: string;
-      ts: string;
-      from?: string;
-      to?: string;
-      valueEth: number;
-      method?: string;
-    }>>)["0x80d04079ffc53eb14edbeeb37279d126f45552df"] || [];
-
-    const deployerEvents: EventView[] = deployerRaw.map((tx) => {
-      const d = new Date(tx.ts);
-      const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
-      const amt = tx.valueEth > 0 ? tx.valueEth : 0.45;
-      const ethP = totals.ethPrice || 2225;
-      return {
-        ts: tx.ts,
-        when: `Today, ${timeStr}`,
-        kind: tx.method === "0x8aaa8f3b" ? "Batch Sweep (0x8aaa8f3b)" : "Deploy / Exploit Gas",
-        sym: "ETH",
-        amt,
-        usd: amt * ethP,
-        usdLive: amt * ethP,
-        priceNow: ethP,
-        wa: tx.from || "0x80d04079ffc53eb14edbeeb37279d126f45552df",
-        wallet: "Deployer / Phishing Infrastructure",
-        to: tx.to || "0x63e842B054Bd624a465454D533C33F573e9c6fAe",
-        hash: tx.hash,
-        method: tx.method || "executeBatch(bytes[])",
-      };
-    });
-
-    let rows: EventView[] = [...liveTxs, ...deployerEvents, ...events];
-    if (selectedTarget) {
-      const lower = selectedTarget.toLowerCase();
-      rows = rows.filter((e) => (e.wa || "").toLowerCase() === lower || (e.to || "").toLowerCase() === lower);
-    } else if (filter === "sales") {
-      rows = rows.filter((e) => e.kind === "Sell (DEX)");
-    } else if (filter === "targets") {
-      rows = rows.filter((e) => isTargetAddress(e.wa) || isTargetAddress(e.to));
-    }
-    return rows.slice(0, limit);
-  }, [events, liveStream?.liveTxs, totals.ethPrice, filter, selectedTarget, limit]);
 
   const hourly = useMemo(() => {
     const sales = events.filter((e) => e.kind === "Sell (DEX)").slice().reverse();
@@ -286,7 +232,8 @@ export default function Live({
                     setSelectedTarget(null);
                   } else {
                     setSelectedTarget(ent.address);
-                    setFilter("targets");
+                    const el = document.getElementById("arkham-entity-live-explorer");
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                   }
                 }}
               >
@@ -333,201 +280,16 @@ export default function Live({
         </div>
       </section>
 
-      <section className="panel-block" id="feed">
-        <SectionTitle
-          kicker="Onchain feed"
-          title={
-            <>
-              Latest activity <span className="mute">{feed.length} shown</span>
-              {selectedTarget ? (
-                <span
-                  className="chip"
-                  style={{
-                    marginLeft: 10,
-                    fontSize: 11,
-                    background: "rgba(255,90,82,0.15)",
-                    color: "var(--red)",
-                    borderColor: "var(--red)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => setSelectedTarget(null)}
-                  title="Clear wallet filter"
-                >
-                  Filtered: {shortAddr(selectedTarget, 6, 4)} ×
-                </span>
-              ) : null}
-            </>
-          }
-          sub="Every token movement out of a known exploiter wallet, newest first. Dollar values are re-priced live from Binance, so the totals move with the market rather than the moment of the sale."
-          right={
-            <Seg<Filter>
-              label="Activity filter"
-              value={filter}
-              onChange={(f) => {
-                setFilter(f);
-                if (f !== "targets") setSelectedTarget(null);
-              }}
-              options={[
-                { value: "sales", label: "Sales" },
-                { value: "all", label: "All moves" },
-                { value: "targets", label: "🎯 Monitored Targets (Live)" },
-              ]}
-            />
-          }
+      {/* Official Arkham Intelligence Live Transactions Explorer for binance-hacker-2 */}
+      <section style={{ marginTop: 24 }} id="arkham-entity-live-explorer">
+        <ArkhamEntity
+          events={events}
+          totals={totals}
+          tracked={tracked}
+          liveStream={liveStream}
+          filterAddress={selectedTarget}
+          onClearFilterAddress={() => setSelectedTarget(null)}
         />
-        {liveStream ? (
-          <div className="live-stream-card" style={{ marginTop: 12 }}>
-            <div className="live-stream-header">
-              <div className="live-radar">
-                <span className="live-radar-dot" />
-                <span>Real-Time Onchain Stream</span>
-                <span className="live-pulse-badge">
-                  {liveStream.isStreaming ? "STREAMING LIVE" : "STREAM PAUSED"}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  style={{ padding: "3px 8px", fontSize: 11 }}
-                  onClick={() => liveStream.setIsStreaming((s) => !s)}
-                >
-                  {liveStream.isStreaming ? "⏸ Pause stream" : "▶ Resume stream"}
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost electric-speed-btn"
-                  style={{ padding: "3px 8px", fontSize: 11 }}
-                  onClick={() =>
-                    liveStream.setSpeed((s) => (s === "blitz" ? "hyper" : s === "hyper" ? "fast" : s === "fast" ? "normal" : "blitz"))
-                  }
-                >
-                  Speed: {liveStream.speed === "blitz" ? "⚡⚡ Blitz (0.6s)" : liveStream.speed === "hyper" ? "⚡ Turbo (1.1s)" : liveStream.speed === "fast" ? "⚡ Fast (2.2s)" : "Normal (5s)"}
-                </button>
-                <button
-                  type="button"
-                  className="btn rt electric-pulse-btn"
-                  style={{ padding: "3px 10px", fontSize: 11 }}
-                  onClick={liveStream.triggerPulse}
-                  title="Force poll / simulate new onchain movement immediately"
-                >
-                  ⚡ Pulse Tx Now
-                </button>
-              </div>
-            </div>
-            {liveStream.latestTx ? (
-              <div className="live-tx-preview" key={liveStream.latestTx.hash}>
-                <span className="bd sell" style={{ fontSize: 10, padding: "2px 6px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <span className="live-status-dot rec" style={{ width: 6, height: 6 }} />
-                  LIVE TX
-                </span>
-                <span className="mono dim" style={{ fontSize: 11.5 }}>
-                  Block #{liveStream.latestTx.blockNumber?.toLocaleString() ?? "26,304,730"}
-                </span>
-                {liveStream.latestTx.method ? (
-                  <span className="method-badge">{liveStream.latestTx.method}</span>
-                ) : null}
-                <span style={{ fontWeight: 600 }}>
-                  {liveStream.latestTx.wallet}
-                </span>
-                <span style={{ color: "var(--mute)" }}>moved</span>
-                <b style={{ color: "var(--text)" }}>
-                  {amount(liveStream.latestTx.amt)} {liveStream.latestTx.sym}
-                </b>
-                <span style={{ color: "var(--red)", fontWeight: 700 }}>
-                  ({usd(liveStream.latestTx.usdLive)})
-                </span>
-                <span style={{ color: "var(--mute)" }}>→ {shortAddr(liveStream.latestTx.to, 8, 4)}</span>
-                <a
-                  href={txUrl(liveStream.latestTx.hash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn ghost"
-                  style={{ padding: "1px 6px", fontSize: 11, marginLeft: "auto" }}
-                >
-                  Etherscan ↗
-                </a>
-              </div>
-            ) : (
-              <div className="mute" style={{ fontFamily: "var(--mono)", fontSize: 11 }}>
-                Listening for next live transaction on monitored wallets...
-              </div>
-            )}
-          </div>
-        ) : null}
-
-        <div className="tbl" style={{ maxHeight: 420 }}>
-          <table>
-            <thead>
-              <tr>
-                <th>When (PT)</th>
-                <th>What</th>
-                <th>Token</th>
-                <th className="num hide-s">Amount</th>
-                <th className="num">USD</th>
-                <th className="hide-s">Wallet</th>
-                <th className="num hide-m">Tx</th>
-              </tr>
-            </thead>
-            <tbody>
-              {feed.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="empty">
-                    <b>Nothing matches this filter</b>
-                    Switch to “All moves” to see transfers between the exploiter&apos;s own wallets.
-                  </td>
-                </tr>
-              ) : (
-                feed.map((e, i) => {
-                  const targetEnt = TARGET_ENTITIES[(e.wa || "").toLowerCase()];
-                  const isLive = Boolean((e as unknown as { isLive?: boolean }).isLive);
-                  return (
-                    <tr key={`${e.hash}-${i}`} className={isLive ? "row-live-highlight" : ""}>
-                      <td className="mono dim">{e.when}</td>
-                      <td><KindBadge kind={e.kind} /></td>
-                      <td className="sym">{e.sym}</td>
-                      <td className="num hide-s">{amount(e.amt)}</td>
-                      <td className="num" style={{ color: e.kind === "Sell (DEX)" ? "#ff9a94" : "#cfd8e5" }}>{usd(e.usdLive)}</td>
-                      <td className="mono hide-s">
-                        {targetEnt ? (
-                          <span
-                            style={{
-                              color: targetEnt.highlightColor,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                            onClick={() => setSelectedTarget(targetEnt.address)}
-                            title={`Filter to ${targetEnt.label}`}
-                          >
-                            {targetEnt.shortLabel}
-                          </span>
-                        ) : (
-                          <a href={addressUrl(e.wa)} target="_blank" rel="noopener noreferrer" className="dim">
-                            {shortAddr(e.wa, 6, 4)}
-                          </a>
-                        )}
-                      </td>
-                      <td className="num hide-m">
-                        {e.hash ? (
-                          <a href={txUrl(e.hash)} target="_blank" rel="noopener noreferrer" title={e.hash}>
-                            ↗
-                          </a>
-                        ) : (
-                          <span className="dim">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        {limit < (filter === "sales" ? events.filter((e) => e.kind === "Sell (DEX)").length : events.length) ? (
-          <button type="button" className="btn more" onClick={() => setLimit((l) => l + 30)}>
-            Show 30 more rows
-          </button>
-        ) : null}
       </section>
 
       <section className="panel-block">

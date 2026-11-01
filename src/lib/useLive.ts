@@ -299,9 +299,10 @@ const TEMPLATE_TXS = [
 export function buildInitialRecentTxs(prices: Record<string, number>): LiveTx[] {
   const list: LiveTx[] = [];
   const now = Date.now();
-  // Realistic rolling offsets (minutes ago): 0.5m, 3m, 6m, 9.5m, 14m, 18m, 22.5m, 27m, 32m, 38m, 44m, 51m, 58m, 66m, 75m, 85m, 96m, 108m, 120m
+  // Realistic rolling 5-minute block offsets within 2 hours: 0.4m, 2.5m, 4.8m, 7.2m, etc.
   const intervalsMinutes = [
-    0.4, 2.8, 5.5, 8.9, 13.2, 17.6, 22.1, 26.8, 31.4, 36.5, 42.0, 47.8, 54.2, 61.0, 68.5, 76.2, 85.0, 94.5, 105.0, 116.5,
+    0.4, 2.5, 4.8, 7.2, 10.0, 13.5, 17.2, 21.0, 25.4, 30.0, 35.1, 40.5, 46.2, 52.0,
+    58.5, 65.0, 72.0, 79.5, 87.0, 95.0, 103.5, 112.0, 120.0,
   ];
 
   intervalsMinutes.forEach((minOffset, i) => {
