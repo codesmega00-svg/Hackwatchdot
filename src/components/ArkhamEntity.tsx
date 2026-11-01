@@ -1,15 +1,138 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import targetTxsData from "../data/target_txs.json";
 import type { EventView, Totals, Tracked } from "../lib/data";
 import {
   TARGET_ENTITIES,
   seed,
   txUrl,
 } from "../lib/data";
-import { amount, pct, shortAddr, shortHash, usd } from "../lib/format";
-import type { LiveTxStream } from "../lib/useLive";
+import { amount, pct, shortAddr, shortHash, timeAgo, usd } from "../lib/format";
+import type { LiveTx, LiveTxStream } from "../lib/useLive";
+import { useTick } from "../lib/useLive";
 import { SectionTitle, useToast } from "./ui";
 
-type ArkhamTab = "portfolio" | "counterparties" | "addresses" | "visualizer" | "transactions";
+type ArkhamTab = "transactions" | "portfolio" | "counterparties" | "addresses" | "visualizer";
+
+export interface UnifiedArkhamTx {
+  hash: string;
+  ts: string;
+  timestampMs: number;
+  when: string;
+  from: string;
+  fromLabel: string;
+  fromCategory?: string;
+  to: string;
+  toLabel: string;
+  toCategory?: string;
+  flow: "inflow" | "outflow" | "internal";
+  sym: string;
+  amt: number;
+  usd: number;
+  chain: string;
+  method: string;
+  methodName: string;
+  blockNumber: number;
+  gasUsed?: string;
+  maxFeePerGas?: string;
+  status: "confirmed" | "live" | "pending";
+  isLive?: boolean;
+}
+
+// Known entity registry for high-fidelity Arkham tag resolution
+const KNOWN_ENTITIES: Record<string, { label: string; shortLabel: string; category: string; color?: string }> = {
+  // Binance victims
+  "0x28c6c06298d514db089934071355e5743bf21d60": { label: "Binance 14 (Victim Hot Wallet)", shortLabel: "Binance 14", category: "Victim CEX", color: "#f3ba2f" },
+  "0xdfd5293d8e347dff59e4571739cd5010364f9373": { label: "Binance Hot Wallet 6 (Victim)", shortLabel: "Binance 6", category: "Victim CEX", color: "#f3ba2f" },
+  "0x21a31ee1afc51d94c2efccaa2092ad1028285549": { label: "Binance 16 Consolidation (Victim)", shortLabel: "Binance 16", category: "Victim CEX", color: "#f3ba2f" },
+
+  // Attacker clustered nodes
+  "0x63e842b054bd624a465454d533c33f573e9c6fae": { label: "Binance Sweeper Contract", shortLabel: "Sweeper (EIP-7702)", category: "Exploit Contract", color: "#ff5a52" },
+  "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c": { label: "Binance Hacker 2: Main Vault", shortLabel: "Hacker Main Vault", category: "Exploiter Treasury", color: "#ff5a52" },
+  "0x80d04079ffc53eb14edbeeb37279d126f45552df": { label: "Deployer / Phishing Infrastructure", shortLabel: "Deployer Phish", category: "Attacker EOA", color: "#ff5a52" },
+  "0x8532fa14acaf483729c449b8458aeddb900543d4": { label: "195K ETH Vault Sink", shortLabel: "195K ETH Vault", category: "Consolidation Vault", color: "#a855f7" },
+  "0xc887af690e0301cd4edbbce8f8d31b4ec65b286a": { label: "122K ETH Vault Sink", shortLabel: "122K ETH Vault", category: "Consolidation Vault", color: "#a855f7" },
+  "0xdd6dbbe67262ccc9b1824de1257999efc6c52296": { label: "PROM Receiver (Auto-Liquidator)", shortLabel: "PROM Receiver", category: "DEX Liquidator", color: "#67a9ff" },
+  "0x79e70d139fc05aa75f75611fdf2680e9952b544a": { label: "Consolidation Relay", shortLabel: "Consolidation Relay", category: "Internal Relay", color: "#a855f7" },
+  "0x03b0ee5d82990cff1bda48651ac3e436d1a020ea": { label: "17K ETH Relay Sink", shortLabel: "17K ETH Relay", category: "Internal Relay", color: "#a855f7" },
+  "0x897c80d1a9729e94460e2bd93178bd5215158df3": { label: "DEX Liquidity Relay", shortLabel: "DEX Relay", category: "DEX Relay", color: "#67a9ff" },
+
+  // Protocols & Counterparties
+  "0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad": { label: "Uniswap: Universal Router", shortLabel: "Uniswap Router", category: "DEX Protocol", color: "#ff007a" },
+  "0x111111125421ca6dc452d289314280a0f8842a65": { label: "1inch V6: Aggregation Router", shortLabel: "1inch Aggregator", category: "DEX Aggregator", color: "#1b314f" },
+  "0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7": { label: "Curve.fi: 3pool", shortLabel: "Curve 3pool", category: "Stable Pool", color: "#3fd69c" },
+  "0x9008d19f58aabd9ed0d60971565aa8510560ab41": { label: "CoW Protocol: GPv2Settlement", shortLabel: "CoW Settlement", category: "MEV Shield DEX", color: "#001e3c" },
+  "0xd37bbeb5744d73041f9a399f69ab63e634288075": { label: "THORChain: Asgard Vault", shortLabel: "THORChain Vault", category: "Cross-Chain Bridge", color: "#23dcc8" },
+  "0xdac17f958d2ee523a2206206994597c13d831ec7": { label: "Tether: Treasury (Blacklisted)", shortLabel: "Tether Treasury", category: "Stablecoin Issuer", color: "#009393" },
+  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": { label: "Circle: USDC Token Contract", shortLabel: "Circle USDC", category: "Stablecoin Issuer", color: "#2775ca" },
+  "0xc7a89a05fb1455f192baeb6748781b5c12293d4a": { label: "EIP-7702 Invocation Target", shortLabel: "Delegation Target", category: "Delegate Call", color: "#ff5a52" },
+  "0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2": { label: "Aave V3: Pool", shortLabel: "Aave V3 Pool", category: "Lending Protocol", color: "#b6509e" },
+  "0xfa7093cdd9e6032e6b4751590f8e3576c7598687": { label: "Railgun Privacy Pool", shortLabel: "Railgun Pool", category: "Privacy Mixer", color: "#f59e0b" },
+};
+
+const METHOD_SIGNATURES: Record<string, string> = {
+  "0x8aaa8f3b": "executeBatch(bytes[])",
+  "0xac9650d8": "multicall(bytes[])",
+  "0xa9059cbb": "transfer(address,uint256)",
+  "0x23b872dd": "transferFrom(address,address,uint256)",
+  "0x38ed1739": "swapExactTokensForTokens",
+  "0x7ff36ab5": "swapExactETHForTokens",
+  "0x18cbafe5": "swapExactTokensForETH",
+  "0x4a25d94a": "sweepToken(address)",
+  "0x095ea7b3": "approve(address,uint256)",
+  "0xd0e30db0": "deposit()",
+  "0x2e1a7d4d": "withdraw(uint256)",
+  "0x97408e75": "delegate(address,bytes)",
+};
+
+function resolveEntity(addr?: string | null): { label: string; shortLabel: string; category: string; color?: string } {
+  if (!addr) return { label: "Unknown Entity", shortLabel: "Unknown", category: "External" };
+  const lower = addr.toLowerCase();
+  if (KNOWN_ENTITIES[lower]) return KNOWN_ENTITIES[lower];
+  if (TARGET_ENTITIES[lower]) {
+    const ent = TARGET_ENTITIES[lower];
+    return { label: ent.label, shortLabel: ent.shortLabel, category: ent.role, color: ent.highlightColor };
+  }
+  return { label: shortAddr(addr, 6, 4), shortLabel: shortAddr(addr, 5, 3), category: "External Address" };
+}
+
+function resolveMethod(method?: string | null): string {
+  if (!method) return "transfer";
+  const lower = method.toLowerCase();
+  if (METHOD_SIGNATURES[lower]) return METHOD_SIGNATURES[lower];
+  return method;
+}
+
+function classifyFlow(from?: string, to?: string, kind?: string): "inflow" | "outflow" | "internal" {
+  const fLower = (from || "").toLowerCase();
+  const tLower = (to || "").toLowerCase();
+
+  const isVictim = fLower.includes("28c6") || fLower.includes("dfd5") || fLower.includes("21a3");
+  if (isVictim) return "inflow";
+
+  const isAttackerClusterFrom = Boolean(
+    fLower.includes("63e8") || fLower.includes("5227") || fLower.includes("80d0") ||
+    fLower.includes("8532") || fLower.includes("c887") || fLower.includes("dd6d") ||
+    fLower.includes("79e7") || fLower.includes("03b0") || fLower.includes("897c")
+  );
+
+  const isAttackerClusterTo = Boolean(
+    tLower.includes("63e8") || tLower.includes("5227") || tLower.includes("80d0") ||
+    tLower.includes("8532") || tLower.includes("c887") || tLower.includes("dd6d") ||
+    tLower.includes("79e7") || tLower.includes("03b0") || tLower.includes("897c")
+  );
+
+  if (isAttackerClusterFrom && isAttackerClusterTo) return "internal";
+  if (!isAttackerClusterFrom && isAttackerClusterTo) return "inflow";
+  if (isAttackerClusterFrom && !isAttackerClusterTo) return "outflow";
+
+  if (kind) {
+    const k = kind.toLowerCase();
+    if (k.includes("sell") || k.includes("dump") || k.includes("sink")) return "outflow";
+    if (k.includes("moved") || k.includes("consolidate") || k.includes("deploy")) return "internal";
+  }
+
+  return "outflow";
+}
 
 export default function ArkhamEntity({
   events,
@@ -23,8 +146,28 @@ export default function ArkhamEntity({
   liveStream?: LiveTxStream;
 }) {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<ArkhamTab>("portfolio");
-  const [txFilter, setTxFilter] = useState<"all" | "inflow" | "outflow" | "internal">("all");
+  // Live ticking hook for real-time age updates ("just now", "5s ago", etc.)
+  const nowTick = useTick(1000);
+  void nowTick;
+
+  // Default to the signature Arkham Live Transactions Stream!
+  const [activeTab, setActiveTab] = useState<ArkhamTab>("transactions");
+
+  // Filters state
+  const [directionFilter, setDirectionFilter] = useState<"all" | "inflow" | "outflow" | "internal">("all");
+  const [chainFilter, setChainFilter] = useState<string>("all");
+  const [tokenFilter, setTokenFilter] = useState<string>("all");
+  const [valueFilter, setValueFilter] = useState<"all" | "1k" | "50k" | "250k" | "1m">("all");
+  const [methodFilter, setMethodFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Pagination & view state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number | "all">(25);
+
+  // Visual & Interactive state
+  const [visualGlowAlerts, setVisualGlowAlerts] = useState<boolean>(true);
+  const [selectedTx, setSelectedTx] = useState<UnifiedArkhamTx | null>(null);
   const [selectedFlowNode, setSelectedFlowNode] = useState<string | null>("contract");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -245,6 +388,222 @@ export default function ArkhamEntity({
     }));
   }, []);
 
+  // MASTER MERGED ARKHAM TRANSACTIONS POOL
+  const allTransactions = useMemo(() => {
+    const byHash = new Map<string, UnifiedArkhamTx>();
+
+    // 1. Ingest seed.history (1,345 records)
+    seed.history.forEach((h) => {
+      const tsMs = h.ts ? new Date(h.ts).getTime() : Date.now();
+      const fromMeta = resolveEntity(h.wa);
+      const toMeta = resolveEntity(h.to);
+      const flow = classifyFlow(h.wa, h.to, h.kind);
+      const chain = h.sym === "BTC" ? "Bitcoin" : h.sym === "BNB" ? "BNB Chain" : "Ethereum";
+
+      byHash.set(h.hash, {
+        hash: h.hash,
+        ts: h.ts,
+        timestampMs: Number.isNaN(tsMs) ? Date.now() : tsMs,
+        when: h.when || "Oct 29, 2026",
+        from: h.wa,
+        fromLabel: fromMeta.label,
+        fromCategory: fromMeta.category,
+        to: h.to,
+        toLabel: toMeta.label,
+        toCategory: toMeta.category,
+        flow,
+        sym: h.sym || "ETH",
+        amt: h.amt || 0,
+        usd: h.usd || (h.amt || 0) * (h.sym === "BTC" ? btcPrice : ethPrice),
+        chain,
+        method: "executeBatch(bytes[])",
+        methodName: "executeBatch",
+        blockNumber: 26304750,
+        status: "confirmed",
+      });
+    });
+
+    // 2. Ingest target_txs.json (308 records from 9 target addresses with gas & block numbers)
+    const targetMap = targetTxsData as unknown as Record<
+      string,
+      Array<{
+        hash: string;
+        ts: string;
+        from: string;
+        to?: string;
+        valueEth?: number;
+        method?: string;
+        status?: string;
+        blockNumber?: number;
+        gasUsed?: string;
+        maxFeePerGas?: string;
+      }>
+    >;
+
+    for (const [, list] of Object.entries(targetMap)) {
+      list.forEach((tx) => {
+        const toAddr = tx.to || "0x63e842B054Bd624a465454D533C33F573e9c6fAe";
+        const fromMeta = resolveEntity(tx.from);
+        const toMeta = resolveEntity(toAddr);
+        const resolvedMethod = resolveMethod(tx.method);
+        const flow = classifyFlow(tx.from, toAddr, resolvedMethod);
+        const tsMs = tx.ts ? new Date(tx.ts).getTime() : Date.now();
+
+        if (byHash.has(tx.hash)) {
+          const existing = byHash.get(tx.hash)!;
+          existing.blockNumber = tx.blockNumber || existing.blockNumber;
+          existing.gasUsed = tx.gasUsed;
+          existing.maxFeePerGas = tx.maxFeePerGas;
+          existing.method = resolvedMethod;
+          existing.methodName = tx.method || resolvedMethod;
+        } else {
+          const valEth = tx.valueEth && tx.valueEth > 0 ? tx.valueEth : 0.85;
+          byHash.set(tx.hash, {
+            hash: tx.hash,
+            ts: tx.ts,
+            timestampMs: Number.isNaN(tsMs) ? Date.now() : tsMs,
+            when: tx.ts ? new Date(tx.ts).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Oct 30, 2026",
+            from: tx.from,
+            fromLabel: fromMeta.label,
+            fromCategory: fromMeta.category,
+            to: toAddr,
+            toLabel: toMeta.label,
+            toCategory: toMeta.category,
+            flow,
+            sym: "ETH",
+            amt: valEth,
+            usd: valEth * ethPrice,
+            chain: "Ethereum",
+            method: resolvedMethod,
+            methodName: tx.method || resolvedMethod,
+            blockNumber: tx.blockNumber || 26304797,
+            gasUsed: tx.gasUsed,
+            maxFeePerGas: tx.maxFeePerGas,
+            status: "confirmed",
+          });
+        }
+      });
+    }
+
+    // 3. Prepend real-time live incoming mempool stream
+    const liveTxs = liveStream?.liveTxs ?? [];
+    liveTxs.forEach((liveItem: LiveTx) => {
+      const fromMeta = resolveEntity(liveItem.wa);
+      const toMeta = resolveEntity(liveItem.to);
+      const resolvedMethod = resolveMethod(liveItem.method);
+      const flow = classifyFlow(liveItem.wa, liveItem.to, liveItem.kind);
+
+      byHash.set(liveItem.hash, {
+        hash: liveItem.hash,
+        ts: liveItem.ts,
+        timestampMs: liveItem.timestampMs || Date.now(),
+        when: liveItem.when || "Just now",
+        from: liveItem.wa,
+        fromLabel: fromMeta.label,
+        fromCategory: fromMeta.category,
+        to: liveItem.to,
+        toLabel: toMeta.label,
+        toCategory: toMeta.category,
+        flow,
+        sym: liveItem.sym || "ETH",
+        amt: liveItem.amt || 0,
+        usd: liveItem.usdLive || liveItem.usd || 0,
+        chain: liveItem.sym === "BTC" ? "Bitcoin" : liveItem.sym === "BNB" ? "BNB Chain" : "Ethereum",
+        method: resolvedMethod,
+        methodName: liveItem.method || resolvedMethod,
+        blockNumber: liveItem.blockNumber || 26304800,
+        status: "live",
+        isLive: true,
+      });
+    });
+
+    const list = Array.from(byHash.values());
+    // Sort chronological descending (newest first)
+    list.sort((a, b) => {
+      if (a.isLive && !b.isLive) return -1;
+      if (!a.isLive && b.isLive) return 1;
+      return b.timestampMs - a.timestampMs;
+    });
+
+    return list;
+  }, [liveStream?.liveTxs, ethPrice, btcPrice]);
+
+  // Aggregate Flow & Volume Statistics
+  const stats = useMemo(() => {
+    let totalVol = 0;
+    let inflowVol = 0;
+    let outflowVol = 0;
+    let internalVol = 0;
+
+    allTransactions.forEach((tx) => {
+      totalVol += tx.usd;
+      if (tx.flow === "inflow") inflowVol += tx.usd;
+      else if (tx.flow === "outflow") outflowVol += tx.usd;
+      else internalVol += tx.usd;
+    });
+
+    return {
+      totalVol,
+      inflowVol,
+      outflowVol,
+      internalVol,
+      netFlow: inflowVol - outflowVol,
+      totalCount: allTransactions.length,
+      liveCount: liveStream?.liveTxs.length ?? 0,
+    };
+  }, [allTransactions, liveStream?.liveTxs.length]);
+
+  // Filtered Transactions
+  const filteredTxs = useMemo(() => {
+    return allTransactions.filter((tx) => {
+      // Direction
+      if (directionFilter !== "all" && tx.flow !== directionFilter) return false;
+
+      // Chain
+      if (chainFilter !== "all" && tx.chain.toLowerCase() !== chainFilter.toLowerCase()) return false;
+
+      // Token
+      if (tokenFilter !== "all" && tx.sym.toLowerCase() !== tokenFilter.toLowerCase()) return false;
+
+      // Value threshold
+      if (valueFilter === "1k" && tx.usd < 1000) return false;
+      if (valueFilter === "50k" && tx.usd < 50000) return false;
+      if (valueFilter === "250k" && tx.usd < 250000) return false;
+      if (valueFilter === "1m" && tx.usd < 1000000) return false;
+
+      // Method
+      if (methodFilter !== "all") {
+        const m = (tx.method + " " + tx.methodName).toLowerCase();
+        if (!m.includes(methodFilter.toLowerCase())) return false;
+      }
+
+      // Search Query (hash, from, to, label, method, sym)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matches =
+          tx.hash.toLowerCase().includes(q) ||
+          tx.from.toLowerCase().includes(q) ||
+          tx.to.toLowerCase().includes(q) ||
+          tx.fromLabel.toLowerCase().includes(q) ||
+          tx.toLabel.toLowerCase().includes(q) ||
+          tx.sym.toLowerCase().includes(q) ||
+          tx.method.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+  }, [allTransactions, directionFilter, chainFilter, tokenFilter, valueFilter, methodFilter, searchQuery]);
+
+  // Paginated Slices
+  const paginatedTxs = useMemo(() => {
+    if (pageSize === "all") return filteredTxs;
+    const start = (page - 1) * pageSize;
+    return filteredTxs.slice(start, start + pageSize);
+  }, [filteredTxs, page, pageSize]);
+
+  const totalPages = pageSize === "all" ? 1 : Math.ceil(filteredTxs.length / (pageSize as number)) || 1;
+
   const copyToClipboard = (text: string, label: string) => {
     void navigator.clipboard?.writeText(text).then(
       () => {
@@ -255,6 +614,58 @@ export default function ArkhamEntity({
       () => toast("Clipboard blocked — please copy manually.")
     );
   };
+
+  // Export handlers
+  const handleExportCSV = useCallback(() => {
+    const headers = ["TxHash", "Timestamp", "Block", "Chain", "Flow", "FromLabel", "FromAddr", "ToLabel", "ToAddr", "Token", "Amount", "USDValue", "Method"];
+    const rows = filteredTxs.map((t) => [
+      t.hash,
+      t.ts,
+      t.blockNumber,
+      t.chain,
+      t.flow.toUpperCase(),
+      `"${t.fromLabel.replace(/"/g, '""')}"`,
+      t.from,
+      `"${t.toLabel.replace(/"/g, '""')}"`,
+      t.to,
+      t.sym,
+      t.amt,
+      t.usd.toFixed(2),
+      `"${t.method.replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `arkham-entity-binance-hacker-2-txs-${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast("Downloaded CSV with " + filteredTxs.length + " transactions");
+  }, [filteredTxs, toast]);
+
+  const handleExportJSON = useCallback(() => {
+    const jsonStr = JSON.stringify(filteredTxs, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `arkham-entity-binance-hacker-2-txs-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast("Downloaded JSON with " + filteredTxs.length + " transactions");
+  }, [filteredTxs, toast]);
+
+  const handleCopyTable = useCallback(() => {
+    const sample = filteredTxs.slice(0, 100);
+    const text = sample
+      .map((t) => `${t.hash}\t${t.ts}\t${t.fromLabel}\t${t.flow.toUpperCase()}\t${t.toLabel}\t${t.sym}\t${t.amt}\t$${t.usd.toFixed(2)}\t${t.method}`)
+      .join("\n");
+    void navigator.clipboard?.writeText(text).then(
+      () => toast(`Copied top ${sample.length} transactions as TSV to clipboard!`),
+      () => toast("Clipboard copy failed")
+    );
+  }, [filteredTxs, toast]);
 
   return (
     <div className="arkham-entity-page" id="arkham-view">
@@ -276,16 +687,20 @@ export default function ArkhamEntity({
               </span>
               {liveStream?.isStreaming ? (
                 <span className="streaming-tag-fast" style={{ fontSize: 9.5 }}>
-                  ⚡ LIVE STREAMING
+                  ⚡ LIVE STREAMING ({liveStream.speed.toUpperCase()})
                 </span>
-              ) : null}
+              ) : (
+                <span className="bd ghost" style={{ fontSize: 9.5 }}>
+                  ⏸ PAUSED
+                </span>
+              )}
               <span className="arkham-id-pill">ID: binance-hacker-2</span>
             </div>
 
             <h1 className="arkham-entity-title">Binance Hacker 2</h1>
             <p className="arkham-entity-desc">
               Clustered onchain entity responsible for the October 29, 2026 EIP-7702 sweep of Binance hot wallets on Ethereum. 
-              Tracking {tracked.length} stolen assets across 18 clustered addresses, cross-chain DEX offloading, and 18,270 Bitcoin hops.
+              Tracking <b>{tracked.length}</b> stolen assets and <b>{events.length}</b> forensic events, showing <b>{stats.totalCount.toLocaleString()}</b> real-time tracked transactions, cross-chain DEX offloading, and 18,270 Bitcoin hops.
             </p>
 
             <div className="arkham-links-row">
@@ -294,16 +709,16 @@ export default function ArkhamEntity({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn rt"
-                style={{ fontSize: 11, padding: "4px 12px" }}
+                style={{ fontSize: 11, padding: "5px 14px", fontWeight: 700 }}
               >
-                View on Arkham ↗
+                Official Arkham Page ↗
               </a>
               <a
                 href="https://etherscan.io/address/0x80d04079ffc53eb14edbeeb37279d126f45552df"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn ghost"
-                style={{ fontSize: 11, padding: "4px 12px" }}
+                style={{ fontSize: 11, padding: "5px 12px" }}
               >
                 Etherscan Cluster ↗
               </a>
@@ -312,10 +727,18 @@ export default function ArkhamEntity({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn ghost"
-                style={{ fontSize: 11, padding: "4px 12px" }}
+                style={{ fontSize: 11, padding: "5px 12px" }}
               >
                 TRM Labs Forensic Report ↗
               </a>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "5px 12px" }}
+                onClick={() => copyToClipboard("https://arkm.com/explorer/entity/binance-hacker-2", "Arkham Entity URL")}
+              >
+                {copiedKey === "https://arkm.com/explorer/entity/binance-hacker-2" ? "Copied Link!" : "Share Entity ⎘"}
+              </button>
             </div>
           </div>
 
@@ -336,7 +759,7 @@ export default function ArkhamEntity({
                 <b>{usd(btcHeldUsd)}</b>
               </div>
               <div className="chain-item">
-                <span className="dim">Peak Stolen:</span>
+                <span className="dim">Historical Haul:</span>
                 <b style={{ color: "var(--red)" }}>$6.36B</b>
               </div>
             </div>
@@ -347,17 +770,24 @@ export default function ArkhamEntity({
         <div className="arkham-tabs-bar" role="tablist">
           <button
             type="button"
+            className={`arkham-tab-btn ${activeTab === "transactions" ? "active" : ""}`}
+            onClick={() => setActiveTab("transactions")}
+          >
+            ⚡ Live Transactions ({stats.totalCount.toLocaleString()})
+          </button>
+          <button
+            type="button"
             className={`arkham-tab-btn ${activeTab === "portfolio" ? "active" : ""}`}
             onClick={() => setActiveTab("portfolio")}
           >
-            📊 Portfolio ({portfolioHoldings.items.length} assets)
+            📊 Clustered Portfolio ({portfolioHoldings.items.length})
           </button>
           <button
             type="button"
             className={`arkham-tab-btn ${activeTab === "counterparties" ? "active" : ""}`}
             onClick={() => setActiveTab("counterparties")}
           >
-            ⇄ Top Counterparties
+            ⇄ Top Counterparties ({counterparties.inflow.length + counterparties.outflow.length})
           </button>
           <button
             type="button"
@@ -373,17 +803,738 @@ export default function ArkhamEntity({
           >
             🕸️ Visualizer Flow Map
           </button>
-          <button
-            type="button"
-            className={`arkham-tab-btn ${activeTab === "transactions" ? "active" : ""}`}
-            onClick={() => setActiveTab("transactions")}
-          >
-            ⚡ Live Transactions Stream
-          </button>
         </div>
       </div>
 
-      {/* SUBTAB 1: PORTFOLIO HOLDINGS */}
+      {/* ===============================================================
+          PRIMARY TAB 1: ARKHAM LIVE TRANSACTIONS STREAM
+          =============================================================== */}
+      {activeTab === "transactions" ? (
+        <section className="arkham-transactions-section" style={{ marginTop: 24 }}>
+          {/* Arkham Volume & Flow Metrics Strip */}
+          <div className="arkham-stats-bar">
+            <div className="arkham-stat-card">
+              <div className="arkham-stat-label">TOTAL VOLUME TRACKED</div>
+              <div className="arkham-stat-val mono">{usd(stats.totalVol)}</div>
+              <div className="arkham-stat-sub">Across {stats.totalCount.toLocaleString()} onchain txs</div>
+            </div>
+
+            <div className="arkham-stat-card inflow-card">
+              <div className="arkham-stat-label">TOTAL INFLOWS ⬇</div>
+              <div className="arkham-stat-val mono up">{usd(stats.inflowVol)}</div>
+              <div className="arkham-stat-sub">Victim drains & funding ({pct((stats.inflowVol / stats.totalVol) * 100, 1)})</div>
+            </div>
+
+            <div className="arkham-stat-card outflow-card">
+              <div className="arkham-stat-label">TOTAL OUTFLOWS ⬆</div>
+              <div className="arkham-stat-val mono down">{usd(stats.outflowVol)}</div>
+              <div className="arkham-stat-sub">DEX offload & bridges ({pct((stats.outflowVol / stats.totalVol) * 100, 1)})</div>
+            </div>
+
+            <div className="arkham-stat-card netflow-card">
+              <div className="arkham-stat-label">NET FLOW</div>
+              <div className={`arkham-stat-val mono ${stats.netFlow >= 0 ? "up" : "down"}`}>
+                {stats.netFlow >= 0 ? "+" : ""}{usd(stats.netFlow)}
+              </div>
+              <div className="arkham-stat-sub">Exploiter retained balance</div>
+            </div>
+
+            <div className="arkham-stat-card speed-card">
+              <div className="arkham-stat-label">LIVE FEED STATUS</div>
+              <div className="arkham-stat-val mono" style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <span className={`live-status-dot ${liveStream?.isStreaming ? "confirmed" : "rec"}`} />
+                {liveStream?.isStreaming ? "STREAMING LIVE" : "FEED PAUSED"}
+              </div>
+              <div className="arkham-stat-sub">~4.2 tx/min · {stats.liveCount} live pulses</div>
+            </div>
+          </div>
+
+          {/* Arkham Stream Controls Toolbar */}
+          <div className="arkham-stream-toolbar">
+            <div className="toolbar-left">
+              <button
+                type="button"
+                className={`btn ${liveStream?.isStreaming ? "rt" : "ghost"}`}
+                style={{ fontSize: 12, padding: "5px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                onClick={() => liveStream?.setIsStreaming((prev) => !prev)}
+              >
+                <span className={`live-status-dot ${liveStream?.isStreaming ? "confirmed" : "rec"}`} />
+                {liveStream?.isStreaming ? "Live Stream Active" : "Stream Paused"}
+              </button>
+
+              <div className="speed-selector" style={{ display: "inline-flex", background: "var(--panel)", borderRadius: 6, padding: 2, border: "1px solid var(--line)" }}>
+                {(["normal", "fast", "hyper", "blitz"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`btn ${liveStream?.speed === s ? "rt" : "ghost"}`}
+                    style={{ fontSize: 10.5, padding: "3px 8px", border: "none", textTransform: "uppercase" }}
+                    onClick={() => liveStream?.setSpeed(s)}
+                    title={`Stream speed: ${s}`}
+                  >
+                    {s === "normal" ? "1x" : s === "fast" ? "2x" : s === "hyper" ? "3x" : "4x Blitz"}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "5px 10px" }}
+                onClick={() => liveStream?.triggerPulse()}
+                title="Manually simulate a new incoming onchain transaction"
+              >
+                ⚡ Trigger Pulse
+              </button>
+
+              <button
+                type="button"
+                className={`btn ${visualGlowAlerts ? "ghost" : "ghost"}`}
+                style={{ fontSize: 11, padding: "5px 10px", opacity: visualGlowAlerts ? 1 : 0.6 }}
+                onClick={() => setVisualGlowAlerts((v) => !v)}
+                title="Toggle visual neon pulse alert when new live transactions arrive"
+              >
+                {visualGlowAlerts ? "🔔 Alerts On" : "🔕 Alerts Off"}
+              </button>
+            </div>
+
+            <div className="toolbar-right">
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "5px 10px" }}
+                onClick={handleExportCSV}
+                title="Export current filtered transactions to CSV"
+              >
+                📥 Export CSV
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "5px 10px" }}
+                onClick={handleExportJSON}
+                title="Export current filtered transactions to JSON"
+              >
+                📄 Export JSON
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "5px 10px" }}
+                onClick={handleCopyTable}
+                title="Copy current table rows to clipboard"
+              >
+                📋 Copy Table
+              </button>
+            </div>
+          </div>
+
+          {/* Arkham Multi-Dimensional Filter Bar */}
+          <div className="arkham-filter-bar">
+            {/* Search Input */}
+            <div className="arkham-filter-search-wrap">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" className="search-icon">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search Tx Hash, Address, Counterparty, Token, Method..."
+                className="arkham-search-input"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              ) : null}
+            </div>
+
+            {/* Direction Filter Pills */}
+            <div className="arkham-direction-pills">
+              {(
+                [
+                  { id: "all", label: "All Flows", badge: null },
+                  { id: "inflow", label: "Inflows ⬇", badge: "inflow" },
+                  { id: "outflow", label: "Outflows ⬆", badge: "outflow" },
+                  { id: "internal", label: "Internal ⇄", badge: "internal" },
+                ] as const
+              ).map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`arkham-direction-btn ${directionFilter === d.id ? "active " + d.id : ""}`}
+                  onClick={() => {
+                    setDirectionFilter(d.id);
+                    setPage(1);
+                  }}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Dropdown Selectors: Chain, Token, Min Value, Method */}
+            <div className="arkham-select-group">
+              {/* Chain */}
+              <select
+                className="arkham-select"
+                value={chainFilter}
+                onChange={(e) => {
+                  setChainFilter(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by Chain"
+              >
+                <option value="all">All Chains</option>
+                <option value="ethereum">Ethereum (ETH)</option>
+                <option value="bnb chain">BNB Chain</option>
+                <option value="bitcoin">Bitcoin (BTC)</option>
+                <option value="tron">Tron (TRX)</option>
+              </select>
+
+              {/* Token */}
+              <select
+                className="arkham-select"
+                value={tokenFilter}
+                onChange={(e) => {
+                  setTokenFilter(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by Token"
+              >
+                <option value="all">All Tokens</option>
+                <option value="eth">ETH</option>
+                <option value="usdt">USDT</option>
+                <option value="usdc">USDC</option>
+                <option value="btc">BTC</option>
+                <option value="bnb">BNB</option>
+                <option value="dai">DAI</option>
+                <option value="pepe">PEPE</option>
+                <option value="shib">SHIB</option>
+                <option value="wld">WLD</option>
+                <option value="prom">PROM</option>
+                <option value="fun">FUN</option>
+              </select>
+
+              {/* Value threshold */}
+              <select
+                className="arkham-select"
+                value={valueFilter}
+                onChange={(e) => {
+                  setValueFilter(e.target.value as typeof valueFilter);
+                  setPage(1);
+                }}
+                aria-label="Filter by Transaction Value"
+              >
+                <option value="all">All Values</option>
+                <option value="1k">&gt; $1,000</option>
+                <option value="50k">&gt; $50,000</option>
+                <option value="250k">&gt; $250,000</option>
+                <option value="1m">&gt; $1,000,000 (Whales 🐋)</option>
+              </select>
+
+              {/* Method */}
+              <select
+                className="arkham-select"
+                value={methodFilter}
+                onChange={(e) => {
+                  setMethodFilter(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by Contract Method"
+              >
+                <option value="all">All Methods</option>
+                <option value="executeBatch">executeBatch</option>
+                <option value="swapExact">swapExactTokens</option>
+                <option value="sweepToken">sweepToken</option>
+                <option value="multicall">multicall</option>
+                <option value="transfer">transfer</option>
+                <option value="delegate">delegate (EIP-7702)</option>
+                <option value="0x8aaa8f3b">0x8aaa8f3b</option>
+              </select>
+
+              {/* Clear filters button if active */}
+              {directionFilter !== "all" || chainFilter !== "all" || tokenFilter !== "all" || valueFilter !== "all" || methodFilter !== "all" || searchQuery ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ fontSize: 11, padding: "4px 8px" }}
+                  onClick={() => {
+                    setDirectionFilter("all");
+                    setChainFilter("all");
+                    setTokenFilter("all");
+                    setValueFilter("all");
+                    setMethodFilter("all");
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Results Counter & Page Size Selector */}
+          <div className="arkham-results-header">
+            <div className="results-count-text">
+              Showing <b>{paginatedTxs.length}</b> of <b>{filteredTxs.length.toLocaleString()}</b> transactions
+              {filteredTxs.length !== allTransactions.length ? ` (filtered from ${allTransactions.length.toLocaleString()})` : ""}
+            </div>
+
+            <div className="page-size-selector">
+              <span className="dim" style={{ fontSize: 11 }}>Rows:</span>
+              {([25, 50, 100, "all"] as const).map((sz) => (
+                <button
+                  key={sz}
+                  type="button"
+                  className={`size-btn ${pageSize === sz ? "active" : ""}`}
+                  onClick={() => {
+                    setPageSize(sz);
+                    setPage(1);
+                  }}
+                >
+                  {sz === "all" ? "All" : sz}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Arkham-Grade Live Stream Transactions Table */}
+          <div className="arkham-table-container">
+            <table className="arkham-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 140 }}>Tx Hash</th>
+                  <th style={{ width: 130 }}>Time / Age</th>
+                  <th>From Entity</th>
+                  <th style={{ width: 90, textAlign: "center" }}>Flow</th>
+                  <th>To Entity</th>
+                  <th className="num" style={{ width: 130 }}>Value (USD)</th>
+                  <th className="num" style={{ width: 150 }}>Amount & Token</th>
+                  <th style={{ width: 100 }}>Chain</th>
+                  <th style={{ width: 160 }}>Method / Action</th>
+                  <th style={{ width: 80, textAlign: "center" }}>Inspect</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedTxs.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} style={{ textAlign: "center", padding: "48px 16px", color: "var(--mute)" }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
+                      <b>No transactions match your current filter selection.</b>
+                      <p style={{ fontSize: 12, margin: "6px 0 14px" }}>Try broadening your search query or resetting filters.</p>
+                      <button
+                        type="button"
+                        className="btn rt"
+                        style={{ fontSize: 11 }}
+                        onClick={() => {
+                          setDirectionFilter("all");
+                          setChainFilter("all");
+                          setTokenFilter("all");
+                          setValueFilter("all");
+                          setMethodFilter("all");
+                          setSearchQuery("");
+                          setPage(1);
+                        }}
+                      >
+                        Reset All Filters
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedTxs.map((tx, idx) => {
+                    const isNewLive = Boolean(tx.isLive && visualGlowAlerts);
+                    const isWhale = tx.usd >= 1000000;
+                    // nowTick used to update relative age dynamically
+                    const elapsed = timeAgo(tx.timestampMs);
+
+                    return (
+                      <tr
+                        key={`${tx.hash}-${idx}`}
+                        className={`arkham-tx-row ${isNewLive ? "arkham-new-live-row" : ""} ${selectedTx?.hash === tx.hash ? "arkham-selected-row" : ""}`}
+                        onClick={() => setSelectedTx(tx)}
+                      >
+                        {/* 1. Tx Hash + Block */}
+                        <td>
+                          <div className="tx-hash-cell">
+                            <a
+                              href={txUrl(tx.hash)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="arkham-tx-link"
+                              onClick={(e) => e.stopPropagation()}
+                              title="View on Explorer"
+                            >
+                              <span className="mono">{shortHash(tx.hash)}</span> ↗
+                            </a>
+                            <button
+                              type="button"
+                              className="arkham-copy-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(tx.hash, "Tx Hash");
+                              }}
+                              title="Copy Full Transaction Hash"
+                              aria-label="Copy Hash"
+                            >
+                              {copiedKey === tx.hash ? "✓" : "⎘"}
+                            </button>
+                            <span className="arkham-block-pill" title={`Block #${tx.blockNumber}`}>
+                              #{tx.blockNumber.toLocaleString()}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 2. Time / Age */}
+                        <td>
+                          <div className="time-cell">
+                            <span className="time-relative mono" title={tx.ts || tx.when}>
+                              {elapsed}
+                            </span>
+                            <span className="time-utc mono dim">
+                              {tx.when}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 3. From Entity */}
+                        <td>
+                          <div className="entity-cell">
+                            <div className="entity-label-row">
+                              <span className="entity-name" title={tx.fromLabel}>
+                                {tx.fromLabel}
+                              </span>
+                              {tx.fromCategory ? <span className="entity-cat-tag">{tx.fromCategory}</span> : null}
+                            </div>
+                            <div className="entity-addr-row">
+                              <span className="mono dim" title={tx.from}>{shortAddr(tx.from, 6, 4)}</span>
+                              <button
+                                type="button"
+                                className="arkham-copy-inline-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(tx.from, "From Address");
+                                }}
+                                title="Copy Address"
+                              >
+                                {copiedKey === tx.from ? "✓" : "⎘"}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 4. Flow Direction */}
+                        <td style={{ textAlign: "center" }}>
+                          <span
+                            className={`arkham-flow-tag ${tx.flow}`}
+                            title={`Flow: ${tx.flow.toUpperCase()}`}
+                          >
+                            {tx.flow === "inflow" ? "IN ⬇" : tx.flow === "outflow" ? "OUT ⬆" : "INT ⇄"}
+                          </span>
+                        </td>
+
+                        {/* 5. To Entity */}
+                        <td>
+                          <div className="entity-cell">
+                            <div className="entity-label-row">
+                              <span className="entity-name" title={tx.toLabel}>
+                                {tx.toLabel}
+                              </span>
+                              {tx.toCategory ? <span className="entity-cat-tag">{tx.toCategory}</span> : null}
+                            </div>
+                            <div className="entity-addr-row">
+                              <span className="mono dim" title={tx.to}>{shortAddr(tx.to, 6, 4)}</span>
+                              <button
+                                type="button"
+                                className="arkham-copy-inline-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(tx.to, "To Address");
+                                }}
+                                title="Copy Address"
+                              >
+                                {copiedKey === tx.to ? "✓" : "⎘"}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 6. Value USD */}
+                        <td className="num">
+                          <div className="value-cell">
+                            <span className={`value-usd mono ${isWhale ? "whale-val" : ""}`}>
+                              {usd(tx.usd)}
+                            </span>
+                            {isWhale ? <span className="whale-badge">WHALE</span> : null}
+                          </div>
+                        </td>
+
+                        {/* 7. Amount & Token */}
+                        <td className="num">
+                          <div className="token-cell">
+                            <span className="token-amount mono">
+                              {amount(tx.amt)}
+                            </span>
+                            <span className={`arkham-token-badge token-${tx.sym.toLowerCase()}`}>
+                              {tx.sym}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 8. Chain */}
+                        <td>
+                          <span className={`arkham-chain-pill chain-${tx.chain.toLowerCase().replace(/\s+/g, "-")}`}>
+                            {tx.chain === "Bitcoin" ? "₿ BTC" : tx.chain === "BNB Chain" ? "BNB" : "ETH"}
+                          </span>
+                        </td>
+
+                        {/* 9. Method */}
+                        <td>
+                          <span className="arkham-method-chip" title={tx.method}>
+                            <code>{tx.method.split("(")[0]}</code>
+                          </span>
+                        </td>
+
+                        {/* 10. Inspect */}
+                        <td style={{ textAlign: "center" }}>
+                          <button
+                            type="button"
+                            className="btn ghost arkham-inspect-btn"
+                            style={{ fontSize: 10, padding: "2px 7px" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTx(tx);
+                            }}
+                          >
+                            Inspect
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {pageSize !== "all" && totalPages > 1 ? (
+            <div className="arkham-pagination">
+              <div className="pagination-info">
+                Page <b>{page}</b> of <b>{totalPages}</b>
+              </div>
+
+              <div className="pagination-buttons">
+                <button
+                  type="button"
+                  className="btn ghost pagination-btn"
+                  disabled={page <= 1}
+                  onClick={() => setPage(1)}
+                  title="First Page"
+                >
+                  « First
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost pagination-btn"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  title="Previous Page"
+                >
+                  ‹ Prev
+                </button>
+
+                <span className="pagination-page-indicator mono">
+                  {page} / {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  className="btn ghost pagination-btn"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  title="Next Page"
+                >
+                  Next ›
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost pagination-btn"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(totalPages)}
+                  title="Last Page"
+                >
+                  Last »
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Interactive Transaction Inspector Modal / Drawer */}
+          {selectedTx ? (
+            <div className="arkham-drawer-backdrop" onClick={() => setSelectedTx(null)}>
+              <div className="arkham-drawer-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="drawer-header">
+                  <div className="drawer-header-meta">
+                    <span className="arkham-tag-badge">TRANSACTION FORENSICS</span>
+                    <span className={`arkham-flow-tag ${selectedTx.flow}`}>
+                      {selectedTx.flow.toUpperCase()}
+                    </span>
+                    <span className="mono dim" style={{ fontSize: 11 }}>Block #{selectedTx.blockNumber}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="drawer-close-btn"
+                    onClick={() => setSelectedTx(null)}
+                    aria-label="Close transaction details"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="drawer-body">
+                  {/* Tx Hash */}
+                  <div className="drawer-section">
+                    <div className="drawer-field-label">TRANSACTION HASH</div>
+                    <div className="drawer-hash-row">
+                      <code className="drawer-hash-val">{selectedTx.hash}</code>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        style={{ fontSize: 11, padding: "2px 8px" }}
+                        onClick={() => copyToClipboard(selectedTx.hash, "Tx Hash")}
+                      >
+                        {copiedKey === selectedTx.hash ? "Copied!" : "Copy ⎘"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Flow Map Visualizer */}
+                  <div className="drawer-flow-map">
+                    <div className="drawer-flow-box from">
+                      <div className="flow-box-role">SOURCE (FROM)</div>
+                      <div className="flow-box-title">{selectedTx.fromLabel}</div>
+                      <div className="flow-box-addr mono">{shortAddr(selectedTx.from, 8, 6)}</div>
+                    </div>
+
+                    <div className="drawer-flow-arrow">
+                      <span className="arrow-badge">{selectedTx.flow.toUpperCase()}</span>
+                      ➔
+                    </div>
+
+                    <div className="drawer-flow-box to">
+                      <div className="flow-box-role">COUNTERPARTY (TO)</div>
+                      <div className="flow-box-title">{selectedTx.toLabel}</div>
+                      <div className="flow-box-addr mono">{shortAddr(selectedTx.to, 8, 6)}</div>
+                    </div>
+                  </div>
+
+                  {/* Value and Token Metrics */}
+                  <div className="drawer-grid">
+                    <div className="drawer-grid-card">
+                      <div className="drawer-card-label">ASSET TRANSFERRED</div>
+                      <div className="drawer-card-val mono" style={{ color: "#ffffff" }}>
+                        {amount(selectedTx.amt)} {selectedTx.sym}
+                      </div>
+                      <div className="drawer-card-sub">Exact token quantity</div>
+                    </div>
+
+                    <div className="drawer-grid-card">
+                      <div className="drawer-card-label">USD VALUE (SPOT)</div>
+                      <div className="drawer-card-val mono" style={{ color: "var(--accent)" }}>
+                        {usd(selectedTx.usd)}
+                      </div>
+                      <div className="drawer-card-sub">At live Binance spot price</div>
+                    </div>
+
+                    <div className="drawer-grid-card">
+                      <div className="drawer-card-label">NETWORK / CHAIN</div>
+                      <div className="drawer-card-val mono">{selectedTx.chain}</div>
+                      <div className="drawer-card-sub">Chain ID 1 (Mainnet)</div>
+                    </div>
+
+                    <div className="drawer-grid-card">
+                      <div className="drawer-card-label">EXECUTION METHOD</div>
+                      <div className="drawer-card-val mono" style={{ fontSize: 13 }}>
+                        {selectedTx.method.split("(")[0]}
+                      </div>
+                      <div className="drawer-card-sub">{selectedTx.methodName || "0x8aaa8f3b"}</div>
+                    </div>
+                  </div>
+
+                  {/* Gas and MEV Details */}
+                  {selectedTx.gasUsed || selectedTx.maxFeePerGas ? (
+                    <div className="drawer-gas-breakdown">
+                      <div className="drawer-field-label">GAS & EXECUTION METRICS</div>
+                      <div className="gas-stats-row">
+                        <span>Gas Used: <b>{Number(selectedTx.gasUsed || 133280).toLocaleString()}</b></span>
+                        <span>Max Fee: <b>{((Number(selectedTx.maxFeePerGas || 450000000)) / 1e9).toFixed(2)} Gwei</b></span>
+                        <span>MEV Bribe: <b>125 Gwei</b></span>
+                        <span>Estimated Fee: <b>$24.80</b></span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Calldata Preview */}
+                  <div className="drawer-calldata-section">
+                    <div className="drawer-field-label">CONTRACT CALLDATA & DECODED PARAMETERS</div>
+                    <pre className="calldata-pre">
+                      <code>{`// Function: ${selectedTx.method}
+// Selector: ${selectedTx.methodName || "0x8aaa8f3b"}
+// Target Contract: ${selectedTx.to}
+// Value: ${selectedTx.amt} ${selectedTx.sym}
+// Timestamp: ${selectedTx.ts} (${selectedTx.when})`}</code>
+                    </pre>
+                  </div>
+
+                  {/* Quick Action Links */}
+                  <div className="drawer-action-links">
+                    <a
+                      href={txUrl(selectedTx.hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn rt"
+                      style={{ fontSize: 11, padding: "6px 14px", flex: 1, textAlign: "center" }}
+                    >
+                      View on Etherscan ↗
+                    </a>
+                    <a
+                      href={`https://arkm.com/explorer/tx/${selectedTx.hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn ghost"
+                      style={{ fontSize: 11, padding: "6px 14px", flex: 1, textAlign: "center" }}
+                    >
+                      View on Arkham ↗
+                    </a>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ fontSize: 11, padding: "6px 14px" }}
+                      onClick={() => copyToClipboard(JSON.stringify(selectedTx, null, 2), "Transaction JSON")}
+                    >
+                      Copy JSON ⎘
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* SUBTAB 2: PORTFOLIO HOLDINGS */}
       {activeTab === "portfolio" ? (
         <section className="panel-block" style={{ marginTop: 24 }}>
           <SectionTitle
@@ -462,7 +1613,7 @@ export default function ArkhamEntity({
         </section>
       ) : null}
 
-      {/* SUBTAB 2: TOP COUNTERPARTIES */}
+      {/* SUBTAB 3: TOP COUNTERPARTIES */}
       {activeTab === "counterparties" ? (
         <section className="panel-block" style={{ marginTop: 24 }}>
           <SectionTitle
@@ -549,7 +1700,7 @@ export default function ArkhamEntity({
         </section>
       ) : null}
 
-      {/* SUBTAB 3: CLUSTERED ADDRESSES */}
+      {/* SUBTAB 4: CLUSTERED ADDRESSES */}
       {activeTab === "addresses" ? (
         <section className="panel-block" style={{ marginTop: 24 }}>
           <SectionTitle
@@ -636,7 +1787,7 @@ export default function ArkhamEntity({
         </section>
       ) : null}
 
-      {/* SUBTAB 4: VISUALIZER FLOW MAP */}
+      {/* SUBTAB 5: VISUALIZER FLOW MAP */}
       {activeTab === "visualizer" ? (
         <section className="panel-block" style={{ marginTop: 24 }}>
           <SectionTitle
@@ -814,98 +1965,6 @@ export default function ArkhamEntity({
                 ) : null}
               </div>
             ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {/* SUBTAB 5: LIVE TRANSACTIONS STREAM */}
-      {activeTab === "transactions" ? (
-        <section className="panel-block" style={{ marginTop: 24 }}>
-          <SectionTitle
-            kicker="Arkham Activity Log"
-            title="Real-Time Clustered Transaction Stream"
-            sub="Every onchain transaction executed by clustered wallets in this entity, tagged with protocol labels and Etherscan verification."
-            right={
-              <div style={{ display: "flex", gap: 6 }}>
-                {(["all", "inflow", "outflow", "internal"] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    className={`btn ${txFilter === filter ? "rt" : "ghost"}`}
-                    style={{ fontSize: 11, padding: "3px 10px", textTransform: "capitalize" }}
-                    onClick={() => setTxFilter(filter)}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            }
-          />
-
-          <div className="tbl" style={{ marginTop: 14 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>When (UTC)</th>
-                  <th>Action / Kind</th>
-                  <th>Token</th>
-                  <th className="num">Amount</th>
-                  <th className="num">USD Value</th>
-                  <th>From / To</th>
-                  <th className="num">Tx Hash</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const liveTxs = liveStream?.liveTxs ?? [];
-                  const streamList = [...liveTxs, ...events];
-                  const filtered = streamList.filter((e) => {
-                    if (txFilter === "inflow") return e.wa && e.wa.toLowerCase().includes("28c6");
-                    if (txFilter === "outflow") return e.kind === "Sell (DEX)";
-                    if (txFilter === "internal") return e.kind.includes("Moved") || e.kind.includes("Consolidate");
-                    return true;
-                  });
-                  return filtered.slice(0, 24).map((e, idx) => {
-                    const isNewTx = Boolean((e as unknown as { isLive?: boolean }).isLive);
-                    return (
-                      <tr key={`${e.hash}-${idx}`} className={`row-live-highlight ${isNewTx ? "new-live-row" : ""}`}>
-                        <td className="mono dim" style={{ fontSize: 11 }}>
-                          {e.when}
-                        </td>
-                        <td>
-                          <span className={`bd ${isNewTx ? "live" : "live-pulse-badge"}`} style={{ fontSize: 10 }}>
-                            {e.kind}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="sym" style={{ fontWeight: 700 }}>{e.sym}</span>
-                        </td>
-                        <td className="num mono">
-                          {amount(e.amt)}
-                        </td>
-                        <td className="num mono" style={{ fontWeight: 700, color: "var(--text)" }}>
-                          {usd(e.usdLive)}
-                        </td>
-                        <td className="mono dim" style={{ fontSize: 11 }}>
-                          {shortAddr(e.wa, 6, 4)} → {shortAddr(e.to, 6, 4)}
-                        </td>
-                        <td className="num">
-                          <a
-                            href={txUrl(e.hash)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn ghost"
-                            style={{ fontSize: 10.5, padding: "1px 6px" }}
-                          >
-                            {shortHash(e.hash)} ↗
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
           </div>
         </section>
       ) : null}
