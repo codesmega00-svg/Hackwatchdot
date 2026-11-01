@@ -12,9 +12,11 @@ import {
   formatFullTime,
   shortAddr,
   shortHash,
+  timeAgo,
   usd,
 } from "../lib/format";
 import { useTick } from "../lib/useLive";
+import { fetchLiveBlockscoutTxs, decodeMethodOrMessage, type LiveApiTx } from "../lib/blockscout";
 import { SectionTitle, useToast } from "./ui";
 
 export type RawTargetTx = {
@@ -68,7 +70,37 @@ export default function LiveWalletFeed({
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(50);
   const [customTxs, setCustomTxs] = useState<Record<string, RawTargetTx[]>>({});
+  const [liveApiTxs, setLiveApiTxs] = useState<LiveApiTx[]>([]);
+  const [isApiLoading, setIsApiLoading] = useState(false);
+  const [apiLastSync, setApiLastSync] = useState<number>(() => Date.now());
   const streamIdx = useRef(0);
+
+  // Pull real-time live transactions from Open-Source Blockscout API
+  const pullOpenSourceApi = useCallback(async () => {
+    setIsApiLoading(true);
+    try {
+      const items = await fetchLiveBlockscoutTxs(
+        activeAddr === "all" ? "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c" : activeAddr,
+        ethPrice
+      );
+      if (items && items.length > 0) {
+        setLiveApiTxs(items);
+        setApiLastSync(Date.now());
+      }
+    } catch (e) {
+      console.warn("Live API pull error in LiveWalletFeed:", e);
+    } finally {
+      setIsApiLoading(false);
+    }
+  }, [activeAddr, ethPrice]);
+
+  useEffect(() => {
+    void pullOpenSourceApi();
+    const interval = window.setInterval(() => {
+      void pullOpenSourceApi();
+    }, 15000); // auto-poll open-source API every 15s
+    return () => window.clearInterval(interval);
+  }, [pullOpenSourceApi]);
 
   // Real-time live active user counter starting from 440
   useEffect(() => {
@@ -156,9 +188,23 @@ export default function LiveWalletFeed({
       };
     });
 
+    const apiNormalized: RawTargetTx[] = liveApiTxs.map((apiTx) => ({
+      hash: apiTx.hash,
+      ts: apiTx.ts,
+      from: apiTx.from,
+      to: apiTx.to,
+      valueEth: apiTx.valueEth,
+      method: apiTx.method,
+      status: apiTx.status,
+      blockNumber: apiTx.blockNumber,
+      gasUsed: apiTx.gasUsed,
+      maxFeePerGas: null,
+      isNew: true,
+    }));
+
     const addedList: RawTargetTx[] = customTxs[activeAddr.toLowerCase()] || [];
-    return [...addedList, ...normalizedInitial];
-  }, [activeAddr, customTxs]);
+    return [...apiNormalized, ...addedList, ...normalizedInitial];
+  }, [activeAddr, customTxs, liveApiTxs]);
 
   // Filtered and searched transactions
   const displayedTxs = useMemo(() => {
@@ -264,6 +310,17 @@ export default function LiveWalletFeed({
         sub="Continuous fast real-time onchain inspection of exploiter infrastructure addresses. Every transaction includes exact UTC and local timestamps, relative elapsed time, block verification status, method signatures, and direct Etherscan links."
         right={
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn rt"
+              style={{ padding: "4px 10px", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 5 }}
+              onClick={() => void pullOpenSourceApi()}
+              disabled={isApiLoading}
+              title={`Pull latest onchain transactions from open-source Blockscout API (Synced ${timeAgo(apiLastSync)})`}
+            >
+              <span className={`live-status-dot ${isApiLoading ? "pending" : "confirmed"}`} style={{ width: 6, height: 6 }} />
+              {isApiLoading ? "Pulling API..." : "↻ Pull Blockscout API"}
+            </button>
             <button
               type="button"
               className="btn ghost electric-speed-btn"
@@ -567,7 +624,8 @@ export default function LiveWalletFeed({
               visibleTxs.map((tx, idx) => {
                 const timeInfo = formatFullTime(tx.ts);
                 const isConfirmed = tx.status === "confirmed" || Boolean(tx.blockNumber);
-                const methodLabel = METHOD_LABELS[tx.method || ""] || tx.method || "call";
+                const decoded = decodeMethodOrMessage(tx.method);
+                const methodLabel = METHOD_LABELS[tx.method || ""] || decoded.label;
                 const isExpanded = expandedTx === tx.hash;
 
                 return (
@@ -672,7 +730,12 @@ export default function LiveWalletFeed({
                           </div>
                         </div>
                       ) : (
-                        <span className="dim">0.00 ETH</span>
+                        <div>
+                          <span className="dim">0.00 ETH</span>
+                          <div style={{ fontSize: 10, color: "var(--mute)" }}>
+                            $0.00
+                          </div>
+                        </div>
                       )}
                     </td>
 

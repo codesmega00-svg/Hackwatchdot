@@ -6550,6 +6550,76 @@ body.light-theme .claim-item {
 .token-btc { color: #f7931a; border-color: rgba(247, 147, 26, 0.3); }
 .token-bnb { color: #f3ba2f; border-color: rgba(243, 186, 47, 0.3); }
 .token-pepe { color: #48bb78; border-color: rgba(72, 187, 120, 0.3); }
+.token-sol { color: #14f195; border-color: rgba(20, 241, 149, 0.3); background: rgba(20, 241, 149, 0.08); }
+.token-trx { color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); }
+.token-usdd { color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); }
+.token-babab { color: #f97316; border-color: rgba(249, 115, 22, 0.3); background: rgba(249, 115, 22, 0.08); }
+.token-b13b { color: #e2e8f0; border-color: rgba(226, 232, 240, 0.3); background: rgba(226, 232, 240, 0.08); }
+
+/* Arkham Chain Icons matching Arkham UI */
+.arkham-chain-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 4px;
+  line-height: 1;
+}
+.arkham-chain-icon.solana {
+  color: #14f195;
+  background: rgba(20, 241, 149, 0.16);
+  border: 1px solid rgba(20, 241, 149, 0.3);
+}
+.arkham-chain-icon.bsc {
+  color: #f3ba2f;
+  background: rgba(243, 186, 47, 0.16);
+  border: 1px solid rgba(243, 186, 47, 0.3);
+}
+.arkham-chain-icon.tron {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.arkham-chain-icon.eth {
+  color: #67a9ff;
+  background: rgba(103, 169, 255, 0.16);
+  border: 1px solid rgba(103, 169, 255, 0.3);
+}
+.arkham-chain-icon.btc {
+  color: #f7931a;
+  background: rgba(247, 147, 26, 0.16);
+  border: 1px solid rgba(247, 147, 26, 0.3);
+}
+
+/* Arkham Screenshot Top Filter Pill */
+.arkham-filter-pill-usd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 58, 138, 0.35);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-family: var(--mono);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.arkham-filter-pill-usd:hover {
+  background: rgba(30, 58, 138, 0.55);
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+.arkham-filter-pill-usd.inactive {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dim);
+  border-color: var(--line);
+}
 
 /* Chain pill */
 .arkham-chain-pill {

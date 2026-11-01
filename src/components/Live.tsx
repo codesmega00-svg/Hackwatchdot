@@ -231,10 +231,22 @@ export default function Live({
         </a>
       </div>
 
-      {/* Dedicated Real-Time Fast Wallet Live Feed (Placed on Top) */}
+      {/* Official Arkham Intelligence Multi-Chain Live Transfers Explorer (Top Hero Section) */}
+      <section style={{ marginTop: 20 }} id="arkham-entity-live-explorer">
+        <ArkhamEntity
+          events={events}
+          totals={totals}
+          tracked={tracked}
+          liveStream={liveStream}
+          filterAddress={selectedTarget}
+          onClearFilterAddress={() => setSelectedTarget(null)}
+        />
+      </section>
+
+      {/* Dedicated Real-Time Fast Wallet Live Feed */}
       <LiveWalletFeed
         defaultAddress={selectedTarget || "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c"}
-        ethPrice={totals.ethHeld > 0 ? totals.stolenEth / 1000 : 2225}
+        ethPrice={tracked.find((t) => t.sym === "ETH")?.price || 2225}
         title="Live Monitored Wallet Feed (Real-Time)"
         kicker="Target Mempool & Onchain Activity"
         initialSpeed="fast"
@@ -347,17 +359,7 @@ export default function Live({
         </div>
       </section>
 
-      {/* Official Arkham Intelligence Live Transactions Explorer for binance-hacker-2 */}
-      <section style={{ marginTop: 24 }} id="arkham-entity-live-explorer">
-        <ArkhamEntity
-          events={events}
-          totals={totals}
-          tracked={tracked}
-          liveStream={liveStream}
-          filterAddress={selectedTarget}
-          onClearFilterAddress={() => setSelectedTarget(null)}
-        />
-      </section>
+
 
       <section className="panel-block">
         <SectionTitle
