@@ -43,7 +43,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export default function LiveWalletFeed({
-  defaultAddress = "0x80d04079ffc53eb14edbeeb37279d126f45552df",
+  defaultAddress = "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c",
   ethPrice = 2225,
   title = "Live Monitored Wallet Feed (Real-Time)",
   kicker = "Target Mempool & Onchain Activity",
@@ -66,6 +66,7 @@ export default function LiveWalletFeed({
   const [liveUsers, setLiveUsers] = useState(440);
   const [userBump, setUserBump] = useState(false);
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(50);
   const [customTxs, setCustomTxs] = useState<Record<string, RawTargetTx[]>>({});
   const streamIdx = useRef(0);
 
@@ -95,6 +96,7 @@ export default function LiveWalletFeed({
   useEffect(() => {
     if (defaultAddress) {
       setActiveAddr(defaultAddress.toLowerCase());
+      setDisplayLimit(50);
     }
   }, [defaultAddress]);
 
@@ -179,6 +181,10 @@ export default function LiveWalletFeed({
     }
     return list;
   }, [txList, filterStatus, searchQuery]);
+
+  const visibleTxs = useMemo(() => {
+    return displayedTxs.slice(0, displayLimit);
+  }, [displayedTxs, displayLimit]);
 
   const copyToClipboard = (text: string, label: string) => {
     void navigator.clipboard?.writeText(text).then(
@@ -326,6 +332,7 @@ export default function LiveWalletFeed({
               }}
               onClick={() => {
                 setActiveAddr(ent.address.toLowerCase());
+                setDisplayLimit(50);
                 setSearchQuery("");
                 setExpandedTx(null);
               }}
@@ -557,7 +564,7 @@ export default function LiveWalletFeed({
                 </td>
               </tr>
             ) : (
-              displayedTxs.map((tx, idx) => {
+              visibleTxs.map((tx, idx) => {
                 const timeInfo = formatFullTime(tx.ts);
                 const isConfirmed = tx.status === "confirmed" || Boolean(tx.blockNumber);
                 const methodLabel = METHOD_LABELS[tx.method || ""] || tx.method || "call";
@@ -699,17 +706,37 @@ export default function LiveWalletFeed({
                     </td>
 
                     <td className="num" style={{ whiteSpace: "nowrap" }}>
-                      <a
-                        href={txUrl(tx.hash)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn ghost"
-                        style={{ padding: "2px 7px", fontSize: 11, fontFamily: "var(--mono)" }}
-                        onClick={(e) => e.stopPropagation()}
-                        title="View transaction on Etherscan"
-                      >
-                        {shortHash(tx.hash)} ↗
-                      </a>
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+                        <a
+                          href={txUrl(tx.hash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn ghost"
+                          style={{ padding: "2px 7px", fontSize: 11, fontFamily: "var(--mono)" }}
+                          onClick={(e) => e.stopPropagation()}
+                          title="View transaction on Etherscan"
+                        >
+                          {shortHash(tx.hash)} ↗
+                        </a>
+                        <a
+                          href={`https://arkm.com/explorer/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn ghost"
+                          style={{
+                            padding: "2px 6px",
+                            fontSize: 10,
+                            fontFamily: "var(--mono)",
+                            color: "#3fd69c",
+                            borderColor: "rgba(63, 214, 156, 0.3)",
+                            background: "rgba(63, 214, 156, 0.1)",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          title="View on Arkham Intelligence"
+                        >
+                          Arkham ↗
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -718,6 +745,61 @@ export default function LiveWalletFeed({
           </tbody>
         </table>
       </div>
+
+      {/* Progressive Load / Expand Controls for Large Target Wallets */}
+      {displayedTxs.length > 50 ? (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 14px",
+            background: "var(--panel-2)",
+            border: "1px solid var(--line)",
+            borderTop: "none",
+            borderRadius: "0 0 8px 8px",
+            flexWrap: "wrap",
+            gap: 10,
+            marginTop: -1,
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: "var(--mute)", fontFamily: "var(--mono)" }}>
+            Showing <b>{visibleTxs.length}</b> of <b>{displayedTxs.length.toLocaleString()}</b> confirmed transfers
+            {activeEntity ? ` for ${activeEntity.shortLabel}` : ""}
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {visibleTxs.length < displayedTxs.length ? (
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "4px 12px" }}
+                onClick={() => setDisplayLimit((prev) => prev + 50)}
+              >
+                Load 50 More Transfers ({displayedTxs.length - visibleTxs.length} remaining)
+              </button>
+            ) : null}
+            {visibleTxs.length < displayedTxs.length ? (
+              <button
+                type="button"
+                className="btn rt"
+                style={{ fontSize: 11, padding: "4px 14px" }}
+                onClick={() => setDisplayLimit(displayedTxs.length)}
+              >
+                Show All {displayedTxs.length} Transfers
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, padding: "4px 12px" }}
+                onClick={() => setDisplayLimit(50)}
+              >
+                Collapse to 50
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* Expanded Tx Quick Details Drawer / Inspector */}
       {expandedTx ? (

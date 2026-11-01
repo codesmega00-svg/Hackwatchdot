@@ -123,5 +123,16 @@ describe("Arkham Intelligence Explorer (binance-hacker-2)", () => {
     const testHash = randomTxHash();
     expect(testHash).toMatch(/^0x[0-9a-f]{64}$/);
   });
+
+  it("contains extensive verified onchain transfers for Main Vault 0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c", () => {
+    const rawMap = targetTxsData as Record<string, Array<{ hash: string; blockNumber?: number; from?: string; to?: string }>>;
+    const vaultTxs = rawMap["0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c"] || [];
+    expect(vaultTxs.length).toBeGreaterThanOrEqual(500);
+    for (const tx of vaultTxs.slice(0, 50)) {
+      expect(tx.hash.startsWith("0x")).toBe(true);
+      expect(tx.hash.length).toBe(66);
+      expect(tx.blockNumber).toBeGreaterThan(0);
+    }
+  });
 });
 

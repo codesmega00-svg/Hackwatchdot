@@ -521,9 +521,11 @@ export default function ArkhamEntity({
             toLabel: toMeta.label,
             toCategory: toMeta.category,
             flow,
-            sym: "ETH",
-            amt: valEth,
-            usd: valEth * ethPrice,
+            sym: (tx as { sym?: string }).sym || "ETH",
+            amt: (tx as { amt?: number }).amt || valEth,
+            usd: (tx as { sym?: string }).sym === "USDT" || (tx as { sym?: string }).sym === "USDC"
+              ? ((tx as { amt?: number }).amt || valEth)
+              : valEth * ethPrice,
             chain: "Ethereum",
             method: resolvedMethod,
             methodName: tx.method || resolvedMethod,
@@ -611,7 +613,9 @@ export default function ArkhamEntity({
       // Filter by Target Address if active
       if (effectiveFilterAddress) {
         const fa = effectiveFilterAddress.toLowerCase();
-        const matchesAddr = tx.from.toLowerCase() === fa || tx.to.toLowerCase() === fa;
+        const matchesAddr =
+          Boolean(tx.from && tx.from.toLowerCase() === fa) ||
+          Boolean(tx.to && tx.to.toLowerCase() === fa);
         if (!matchesAddr) return false;
       }
 
@@ -2033,6 +2037,16 @@ export default function ArkhamEntity({
                           style={{ padding: "2px 7px", fontSize: 11 }}
                         >
                           Etherscan ↗
+                        </a>
+                        <a
+                          href={`https://arkm.com/explorer/address/${ent.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn ghost"
+                          style={{ padding: "2px 7px", fontSize: 11, color: "#3fd69c", borderColor: "rgba(63, 214, 156, 0.3)" }}
+                          title="View on Arkham Intelligence"
+                        >
+                          Arkham ↗
                         </a>
                       </div>
                     </td>

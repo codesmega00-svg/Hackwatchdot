@@ -166,6 +166,28 @@ export default function Live({
 
       {/* Live View Navigation & Arkham Real-Time Explorer Shortcut */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "14px 0 18px", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className={`btn ${selectedTarget?.toLowerCase() === "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c" ? "rt" : "ghost"}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: 12,
+            padding: "7px 14px",
+            borderColor: "rgba(255, 90, 82, 0.5)",
+            background: selectedTarget?.toLowerCase() === "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c" ? "rgba(255, 90, 82, 0.2)" : undefined,
+          }}
+          onClick={() => {
+            setSelectedTarget("0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c");
+            const el = document.getElementById("wallet-live-feed");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          title="Filter and show all transfers for Main Vault (0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c)"
+        >
+          <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#ff5a52" }} />
+          💰 Main Vault Transfers (550+ Onchain)
+        </button>
         <a
           href="#arkham-entity-live-explorer"
           className="btn rt"
@@ -211,7 +233,7 @@ export default function Live({
 
       {/* Dedicated Real-Time Fast Wallet Live Feed (Placed on Top) */}
       <LiveWalletFeed
-        defaultAddress={selectedTarget || "0x80d04079ffc53eb14edbeeb37279d126f45552df"}
+        defaultAddress={selectedTarget || "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c"}
         ethPrice={totals.ethHeld > 0 ? totals.stolenEth / 1000 : 2225}
         title="Live Monitored Wallet Feed (Real-Time)"
         kicker="Target Mempool & Onchain Activity"
