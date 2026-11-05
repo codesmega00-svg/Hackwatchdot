@@ -80,7 +80,96 @@ export default function Live({
 
   return (
     <>
-      <div className="tsr" id="search">
+      {/* Live View Navigation & Arkham Real-Time Explorer Shortcuts */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "0 0 16px", flexWrap: "wrap" }}>
+        <a
+          href="#arkham-entity-live-explorer"
+          className="btn rt"
+          style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, padding: "7px 14px" }}
+        >
+          <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fd69c" }} />
+          ⚡ Arkham Live Explorer (1,600+ Txs)
+        </a>
+        <a
+          href="#wallet-live-feed"
+          className="btn ghost"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px" }}
+        >
+          🎯 Target Mempool Feed
+        </a>
+        <button
+          type="button"
+          className={`btn ${selectedTarget?.toLowerCase() === "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c" ? "rt" : "ghost"}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: 12,
+            padding: "7px 14px",
+            borderColor: "rgba(255, 90, 82, 0.5)",
+            background: selectedTarget?.toLowerCase() === "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c" ? "rgba(255, 90, 82, 0.2)" : undefined,
+          }}
+          onClick={() => {
+            setSelectedTarget("0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c");
+            const el = document.getElementById("wallet-live-feed");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          title="Filter and show all transfers for Main Vault (0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c)"
+        >
+          <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#ff5a52" }} />
+          💰 Main Vault Transfers (550+ Onchain)
+        </button>
+        <a
+          href="#monitored-targets"
+          className="btn ghost"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px" }}
+        >
+          🏷️ Monitored Targets
+        </a>
+        <a
+          href="https://arkm.com/explorer/entity/binance-hacker-2"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn ghost"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            padding: "7px 14px",
+            marginLeft: "auto",
+            color: "#3fd69c",
+            borderColor: "rgba(63, 214, 156, 0.4)",
+          }}
+          title="Open official Binance Hacker 2 entity on Arkham Intelligence"
+        >
+          Official Arkham Entity ↗
+        </a>
+      </div>
+
+      {/* Official Arkham Intelligence Multi-Chain Live Transfers Explorer (Top Hero Section) */}
+      <section style={{ marginBottom: 20 }} id="arkham-entity-live-explorer">
+        <ArkhamEntity
+          events={events}
+          totals={totals}
+          tracked={tracked}
+          liveStream={liveStream}
+          filterAddress={selectedTarget}
+          onClearFilterAddress={() => setSelectedTarget(null)}
+        />
+      </section>
+
+      {/* Dedicated Real-Time Fast Wallet Live Feed */}
+      <LiveWalletFeed
+        defaultAddress={selectedTarget || "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c"}
+        ethPrice={tracked.find((t) => t.sym === "ETH")?.price || 2225}
+        title="Live Monitored Wallet Feed (Real-Time)"
+        kicker="Target Mempool & Onchain Activity"
+        initialSpeed="fast"
+      />
+
+      {/* Stolen Token Search */}
+      <div className="tsr" id="search" style={{ marginTop: 24 }}>
         <form className="tsbox" onSubmit={onSubmit} role="search">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
@@ -163,94 +252,6 @@ export default function Live({
 
         {sel ? <SearchResult t={sel} onOpenToken={onOpenToken} toast={toast} /> : null}
       </div>
-
-      {/* Live View Navigation & Arkham Real-Time Explorer Shortcut */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "14px 0 18px", flexWrap: "wrap" }}>
-        <button
-          type="button"
-          className={`btn ${selectedTarget?.toLowerCase() === "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c" ? "rt" : "ghost"}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            fontSize: 12,
-            padding: "7px 14px",
-            borderColor: "rgba(255, 90, 82, 0.5)",
-            background: selectedTarget?.toLowerCase() === "0x5227f603c1ee34ce3c06efe6477003bdfccb2f8c" ? "rgba(255, 90, 82, 0.2)" : undefined,
-          }}
-          onClick={() => {
-            setSelectedTarget("0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c");
-            const el = document.getElementById("wallet-live-feed");
-            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          title="Filter and show all transfers for Main Vault (0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c)"
-        >
-          <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#ff5a52" }} />
-          💰 Main Vault Transfers (550+ Onchain)
-        </button>
-        <a
-          href="#arkham-entity-live-explorer"
-          className="btn rt"
-          style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, padding: "7px 14px" }}
-        >
-          <span className="dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fd69c" }} />
-          ⚡ Arkham Live Explorer (1,600+ Txs)
-        </a>
-        <a
-          href="#wallet-live-feed"
-          className="btn ghost"
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px" }}
-        >
-          🎯 Target Mempool Feed
-        </a>
-        <a
-          href="#monitored-targets"
-          className="btn ghost"
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px" }}
-        >
-          🏷️ Monitored Targets
-        </a>
-        <a
-          href="https://arkm.com/explorer/entity/binance-hacker-2"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn ghost"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 12,
-            padding: "7px 14px",
-            marginLeft: "auto",
-            color: "#3fd69c",
-            borderColor: "rgba(63, 214, 156, 0.4)",
-          }}
-          title="Open official Binance Hacker 2 entity on Arkham Intelligence"
-        >
-          Official Arkham Entity ↗
-        </a>
-      </div>
-
-      {/* Official Arkham Intelligence Multi-Chain Live Transfers Explorer (Top Hero Section) */}
-      <section style={{ marginTop: 20 }} id="arkham-entity-live-explorer">
-        <ArkhamEntity
-          events={events}
-          totals={totals}
-          tracked={tracked}
-          liveStream={liveStream}
-          filterAddress={selectedTarget}
-          onClearFilterAddress={() => setSelectedTarget(null)}
-        />
-      </section>
-
-      {/* Dedicated Real-Time Fast Wallet Live Feed */}
-      <LiveWalletFeed
-        defaultAddress={selectedTarget || "0x5227f603C1eE34CE3C06eFe6477003BDfCCB2f8c"}
-        ethPrice={tracked.find((t) => t.sym === "ETH")?.price || 2225}
-        title="Live Monitored Wallet Feed (Real-Time)"
-        kicker="Target Mempool & Onchain Activity"
-        initialSpeed="fast"
-      />
 
       <div style={{ marginTop: 26 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
