@@ -7003,6 +7003,111 @@ body.light-theme .calldata-pre {
   animation: fadeIn 0.35s ease-out;
 }
 
+/* Real-Time Live Network Bar */
+.dust-live-net-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.net-status-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00c805;
+  box-shadow: 0 0 8px #00c805;
+  animation: pulseDot 1.8s infinite ease-in-out;
+}
+
+.net-title {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.net-block {
+  font-family: var(--mono);
+  color: var(--blue);
+  background: rgba(103, 169, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.net-gas {
+  font-family: var(--mono);
+  color: var(--amber);
+  background: var(--amber-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.net-status-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.net-eth-price {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--green);
+}
+
+.net-source-tag {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.dust-connected-pill {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid rgba(63, 214, 156, 0.3);
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.dust-connect-wallet-btn {
+  background: linear-gradient(135deg, rgba(103, 169, 255, 0.15), rgba(166, 140, 255, 0.15));
+  border: 1px solid rgba(103, 169, 255, 0.35);
+  color: var(--blue);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dust-connect-wallet-btn:hover {
+  background: rgba(103, 169, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.verified-onchain-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+}
+
 /* Header Card */
 .dust-header-card {
   background: linear-gradient(135deg, rgba(14, 20, 29, 0.95), rgba(18, 27, 38, 0.95));

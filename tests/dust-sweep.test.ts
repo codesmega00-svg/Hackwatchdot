@@ -6,14 +6,15 @@ import {
   USER_REVERT_PCT,
   DEFAULT_DUST_THRESHOLD_USD,
   PROTOCOL_WALLET,
+  LIFI_DIAMOND_ADDRESS,
   PRESET_WALLETS,
   ROBINHOOD_CRYPTO_TOKENS,
-  generateDeterministicDustTokens,
   calculateSweepQuote,
+  fetchWalletDustTokens,
   DustToken,
 } from "../src/lib/dustSweeper";
 
-describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
+describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", () => {
   const appPath = path.resolve(__dirname, "../src/App.tsx");
   const appTsx = fs.readFileSync(appPath, "utf-8");
   const componentPath = path.resolve(__dirname, "../src/components/RobinhoodDustSweep.tsx");
@@ -29,6 +30,7 @@ describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
     expect(PROTOCOL_FEE_PCT + USER_REVERT_PCT).toBe(1.0);
     expect(DEFAULT_DUST_THRESHOLD_USD).toBe(30.0);
     expect(PROTOCOL_WALLET.toLowerCase()).toBe("0x24fe2677f951493ee42550aa05c55c713de5c556");
+    expect(LIFI_DIAMOND_ADDRESS.toLowerCase()).toBe("0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae");
   });
 
   it("includes Robinhood-listed tokens in catalog", () => {
@@ -43,24 +45,11 @@ describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
     expect(symbols).toContain("ARB");
   });
 
-  it("ensures all generated dust tokens are strictly less than $30 USD", () => {
-    const testWallets = [
-      "0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489",
-      "0x11142F60f6Ec1b2A53d686f0302E15e8b340Fa98",
-      "0x51E2818816c5264b3E4f762Fa5D60E58Fff86475",
-      "0x71a2B890F34bC1a3c74E21D71b9B2eD95c2192b4",
-    ];
-
-    for (const wallet of testWallets) {
-      const tokens = generateDeterministicDustTokens(wallet, 30.0);
-      expect(tokens.length).toBeGreaterThan(0);
-      for (const token of tokens) {
-        expect(token.valueUsd).toBeGreaterThan(0);
-        expect(token.valueUsd).toBeLessThan(30.0);
-        expect(token.isDust).toBe(true);
-        expect(token.isRobinhoodListed).toBe(true);
-      }
-    }
+  it("returns empty array for invalid or non-hex address without throwing", async () => {
+    const emptyResult = await fetchWalletDustTokens("not-an-address", 30.0);
+    expect(emptyResult).toEqual([]);
+    const emptyResult2 = await fetchWalletDustTokens("0x123", 30.0);
+    expect(emptyResult2).toEqual([]);
   });
 
   it("calculates exact 80/20 fee split and ETH conversion in calculateSweepQuote", () => {
@@ -81,6 +70,7 @@ describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
         isDust: true,
         logoUrl: "",
         sourceLiquidity: "Uniswap v3",
+        rawBalance: "1000000000000000000000000",
       },
       {
         id: "UNI-1",
@@ -98,6 +88,7 @@ describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
         isDust: true,
         logoUrl: "",
         sourceLiquidity: "Curve",
+        rawBalance: "2000000000000000000",
       },
       {
         id: "CRV-1",
@@ -115,6 +106,7 @@ describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
         isDust: true,
         logoUrl: "",
         sourceLiquidity: "Uniswap v3",
+        rawBalance: "10000000000000000000",
       },
     ];
 
@@ -152,12 +144,14 @@ describe("Robinhood Dust to ETH Sweeper (Page #13)", () => {
     expect(componentTsx).toContain("Same-Chain");
   });
 
-  it("includes search bar and preset wallets in UI", () => {
+  it("includes search bar, live network bar, and real preset wallets in UI", () => {
     expect(componentTsx).toContain("dust-address-input");
     expect(componentTsx).toContain("dust-scan-btn");
+    expect(componentTsx).toContain("dust-live-net-bar");
     expect(PRESET_WALLETS.length).toBeGreaterThanOrEqual(3);
     const presetLabels = PRESET_WALLETS.map((p) => p.label);
     expect(presetLabels).toContain("Robinhood Hot Wallet 8");
+    expect(presetLabels).toContain("Vitalik Buterin (vitalik.eth)");
   });
 
   it("translates nav_dust across all supported languages in i18n.ts", () => {
