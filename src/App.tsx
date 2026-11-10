@@ -11,6 +11,7 @@ import Tokens from "./components/Tokens";
 import Timeline from "./components/Timeline";
 import Trail from "./components/Trail";
 import RewardsTask from "./components/RewardsTask";
+import RobinhoodDustSweep from "./components/RobinhoodDustSweep";
 import { Bar, Kpi, LiveBadge, ToastCtx } from "./components/ui";
 import AnnouncementBar from "./components/AnnouncementBar";
 import SupportSection from "./components/SupportSection";
@@ -27,7 +28,7 @@ import {
 import { pct, usd } from "./lib/format";
 import { LiveTx, useBinance, useLiveTransactions, useTick } from "./lib/useLive";
 
-type TabId = "live" | "fasttx" | "flow" | "arkham" | "exploit" | "tokens" | "pressure" | "sales" | "trail" | "timeline" | "chat" | "rewards";
+type TabId = "live" | "fasttx" | "flow" | "arkham" | "exploit" | "tokens" | "pressure" | "sales" | "trail" | "timeline" | "chat" | "rewards" | "dust";
 type Mode = "detailed" | "simple";
 
 const TABS: { id: TabId; label: string; short: string; advanced?: boolean }[] = [
@@ -43,6 +44,7 @@ const TABS: { id: TabId; label: string; short: string; advanced?: boolean }[] = 
   { id: "timeline", label: "Timeline", short: "Time" },
   { id: "chat", label: "Chat", short: "Chat" },
   { id: "rewards", label: "Claim $5,000 Reward", short: "$5K Bounty" },
+  { id: "dust", label: "Robinhood Dust Sweep (#13)", short: "Dust #13" },
 ];
 
 const TAB_TITLES: Record<TabId, string> = {
@@ -58,6 +60,7 @@ const TAB_TITLES: Record<TabId, string> = {
   timeline: "Exploit Timeline & Historical Sequence | HackWatch",
   chat: "Live Community Investigation Desk & Clues | HackWatch",
   rewards: "Claim $5,000 Community Reward — Complete Tasks | HackWatch",
+  dust: "Robinhood Dust to ETH Sweeper (< $30) — Tab #13 | HackWatch",
 };
 
 const MODE_KEY = "hackwatch.mode";
@@ -118,6 +121,13 @@ function Icon({ id }: { id: TabId }) {
         <svg {...common}>
           <circle cx="12" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
           <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "dust":
+      return (
+        <svg {...common}>
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M12 15l3-3m0 0l-3-3m3 3H3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
   }
@@ -554,6 +564,7 @@ function HackWatchApp() {
             {tab === "timeline" ? <Timeline events={events} /> : null}
             {tab === "chat" ? <Chat /> : null}
             {tab === "rewards" ? <RewardsTask /> : null}
+            {tab === "dust" ? <RobinhoodDustSweep ethPrice={ethPrice} /> : null}
           </main>
 
           <details id="how" className="how" ref={howRef} open={howOpen} onToggle={(e) => setHowOpen((e.currentTarget as HTMLDetailsElement).open)}>

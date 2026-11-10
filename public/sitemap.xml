@@ -66,5 +66,11 @@
     <changefreq>hourly</changefreq>
     <priority>0.95</priority>
   </url>
+  <url>
+    <loc>https://hackwatch.hackwatch.workers.dev/#dust</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.95</priority>
+  </url>
 </urlset>
 
