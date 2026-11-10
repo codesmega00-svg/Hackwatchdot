@@ -102,8 +102,8 @@ export const PRESET_WALLETS: PresetWallet[] = [
     label: "Hot Sweeper (0x370A...)",
     address: "0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF",
     tag: "High-Volume Sweeper",
-    description: "Multi-chain relayer/sweeper with 1.98M+ transactions and 94 dust tokens",
-    knownDustSummary: "Holds 94 onchain dust tokens under $30 (HEX, BZR, ZIK, etc.) plus 5.85 ETH and $18.2K USDC",
+    description: "Multi-chain relayer/sweeper with 1.98M+ transactions and 215 dust tokens",
+    knownDustSummary: "Holds 215 onchain dust tokens under $30 (~$4 USD total: HEX, BZR, ZIK, etc.) plus 5.85 ETH and $18.2K USDC",
   },
   {
     label: "Queried Wallet (0xbb9a...)",
@@ -348,8 +348,10 @@ function formatTokenAmount(amount: number): string {
 }
 
 // Real-Time Onchain Token Balance Fetcher
-// Queries Ethplorer Onchain Indexer + Direct Public Ethereum RPC batch eth_call
-// ZERO dummy/mock numbers: filters strictly for tokens where valueUsd > 0 && valueUsd < maxThresholdUsd
+// Multi-Source Resilient Architecture:
+// 1. Blockscout Explorer API (https://eth.blockscout.com/api/v2/addresses/{addr}/token-balances)
+// 2. Ethplorer Onchain Indexer (https://api.ethplorer.io)
+// 3. Direct Public Ethereum JSON-RPC batch eth_call & eth_getBalance
 export async function fetchWalletDustTokens(
   address: string,
   maxThresholdUsd: number = DEFAULT_DUST_THRESHOLD_USD,
@@ -362,92 +364,161 @@ export async function fetchWalletDustTokens(
 
   const foundTokensMap = new Map<string, DustToken>();
 
-  // 1. Primary Source: Ethplorer API (contains all onchain tokens with real-time USD prices)
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6500);
+  // Run Blockscout and Ethplorer in parallel for maximum resilience
+  await Promise.allSettled([
+    // Source 1: Blockscout Open-Source Token Balances API (Fast, Open CORS, High Limit)
+    (async () => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
 
-    const res = await fetch(`https://api.ethplorer.io/getAddressInfo/${cleanAddr}?apiKey=freekey`, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const data = await res.json();
-      const rawTokens = data.tokens || [];
-
-      // Check native ETH balance
-      const ethBal = Number(data.ETH?.balance || 0);
-      const effectiveEthPrice = Number(data.ETH?.price?.rate || ethPrice || 2225);
-      const ethValUsd = Number((ethBal * effectiveEthPrice).toFixed(2));
-      if (ethBal > 0.00001 && ethValUsd < maxThresholdUsd) {
-        foundTokensMap.set("0x0000000000000000000000000000000000000000", {
-          id: `ETH-${cleanAddr.slice(2, 8)}`,
-          symbol: "ETH",
-          name: "Ethereum (Native Dust)",
-          address: "0x0000000000000000000000000000000000000000",
-          decimals: 18,
-          balance: ethBal,
-          balanceFormatted: formatTokenAmount(ethBal),
-          priceUsd: effectiveEthPrice,
-          valueUsd: ethValUsd,
-          chain: "Ethereum",
-          chainId: 1,
-          isRobinhoodListed: true,
-          isDust: true,
-          logoUrl: "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
-          sourceLiquidity: "Native Ethereum Balance",
-          rawBalance: String(data.ETH?.rawBalance || BigInt(Math.floor(ethBal * 1e18)).toString()),
+        const res = await fetch(`https://eth.blockscout.com/api/v2/addresses/${cleanAddr}/token-balances`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
         });
-      }
+        clearTimeout(timeout);
 
-      for (const item of rawTokens) {
-        const info = item.tokenInfo || {};
-        const tokenAddr = (info.address || "").toLowerCase();
-        if (!tokenAddr || tokenAddr === "0x0000000000000000000000000000000000000000") continue;
+        if (res.ok) {
+          const items = await res.json();
+          if (Array.isArray(items)) {
+            for (const item of items) {
+              const t = item.token || {};
+              const tokenAddr = (t.address_hash || t.address || "").toLowerCase();
+              if (!tokenAddr || tokenAddr === "0x0000000000000000000000000000000000000000") continue;
 
-        const decimals = Number(info.decimals) || 18;
-        const balance = parseTokenBalance(String(item.rawBalance || item.balance || "0"), decimals);
-        if (balance <= 0) continue;
+              const decimals = Number(t.decimals) || 18;
+              const rawVal = String(item.value || "0");
+              const balance = parseTokenBalance(rawVal, decimals);
+              if (balance <= 0) continue;
 
-        const priceObj = info.price;
-        const rawPriceUsd = typeof priceObj === "object" && priceObj ? Number(priceObj.rate || 0) : Number(priceObj || 0);
-        const isUnquoted = rawPriceUsd <= 0;
-        const priceUsd = isUnquoted ? 0.000001 : rawPriceUsd;
-        const valueUsd = isUnquoted ? 0.01 : Number((balance * priceUsd).toFixed(2));
+              const exchangeRate = Number(t.exchange_rate) || 0;
+              const isUnquoted = exchangeRate <= 0;
+              const priceUsd = isUnquoted ? 0.000001 : exchangeRate;
+              const valueUsd = isUnquoted ? 0.01 : Number((balance * priceUsd).toFixed(2));
 
-        // Strict dust criteria: 0 < valueUsd < maxThresholdUsd
-        if (valueUsd > 0.0001 && valueUsd < maxThresholdUsd) {
-          const sym = (info.symbol || "UNKNOWN").toUpperCase();
-          const isRh = ROBINHOOD_CRYPTO_TOKENS.some((r) => r.symbol === sym || r.address.toLowerCase() === tokenAddr);
+              if (valueUsd > 0.0001 && valueUsd < maxThresholdUsd) {
+                const sym = (t.symbol || "UNKNOWN").toUpperCase();
+                const isRh = ROBINHOOD_CRYPTO_TOKENS.some((r) => r.symbol === sym || r.address.toLowerCase() === tokenAddr);
 
-          foundTokensMap.set(tokenAddr, {
-            id: `${sym}-${tokenAddr.slice(2, 8)}`,
-            symbol: sym,
-            name: info.name || sym,
-            address: info.address,
-            decimals,
-            balance,
-            balanceFormatted: formatTokenAmount(balance),
-            priceUsd,
-            valueUsd,
-            chain: "Ethereum",
-            chainId: 1,
-            isRobinhoodListed: isRh,
-            isDust: true,
-            logoUrl:
-              ROBINHOOD_CRYPTO_TOKENS.find((r) => r.symbol === sym)?.logoUrl ||
-              "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
-            sourceLiquidity: isRh ? "Uniswap v3 + Robinhood Route" : isUnquoted ? "Unquoted Micro-Dust (< $30)" : "LI.FI Multi-DEX",
-            rawBalance: String(item.rawBalance || "0"),
-          });
+                foundTokensMap.set(tokenAddr, {
+                  id: `${sym}-${tokenAddr.slice(2, 8)}`,
+                  symbol: sym,
+                  name: t.name || sym,
+                  address: t.address_hash || t.address,
+                  decimals,
+                  balance,
+                  balanceFormatted: formatTokenAmount(balance),
+                  priceUsd,
+                  valueUsd,
+                  chain: "Ethereum",
+                  chainId: 1,
+                  isRobinhoodListed: isRh,
+                  isDust: true,
+                  logoUrl:
+                    t.icon_url ||
+                    ROBINHOOD_CRYPTO_TOKENS.find((r) => r.symbol === sym)?.logoUrl ||
+                    "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
+                  sourceLiquidity: isRh ? "Uniswap v3 + Robinhood Route" : isUnquoted ? "Unquoted Micro-Dust (< $30)" : "LI.FI Multi-DEX",
+                  rawBalance: rawVal,
+                });
+              }
+            }
+          }
         }
+      } catch (err) {
+        console.warn("Blockscout token-balances fetch notice:", err);
       }
-    }
-  } catch (err) {
-    console.warn("Ethplorer real-time fetch error (falling back to direct RPC):", err);
-  }
+    })(),
+
+    // Source 2: Ethplorer API (contains native ETH and indexed ERC-20 balances)
+    (async () => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+
+        const res = await fetch(`https://api.ethplorer.io/getAddressInfo/${cleanAddr}?apiKey=freekey`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+        clearTimeout(timeout);
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawTokens = data.tokens || [];
+
+          // Check native ETH balance
+          const ethBal = Number(data.ETH?.balance || 0);
+          const effectiveEthPrice = Number(data.ETH?.price?.rate || ethPrice || 2225);
+          const ethValUsd = Number((ethBal * effectiveEthPrice).toFixed(2));
+          if (ethBal > 0.00001 && ethValUsd < maxThresholdUsd) {
+            foundTokensMap.set("0x0000000000000000000000000000000000000000", {
+              id: `ETH-${cleanAddr.slice(2, 8)}`,
+              symbol: "ETH",
+              name: "Ethereum (Native Dust)",
+              address: "0x0000000000000000000000000000000000000000",
+              decimals: 18,
+              balance: ethBal,
+              balanceFormatted: formatTokenAmount(ethBal),
+              priceUsd: effectiveEthPrice,
+              valueUsd: ethValUsd,
+              chain: "Ethereum",
+              chainId: 1,
+              isRobinhoodListed: true,
+              isDust: true,
+              logoUrl: "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
+              sourceLiquidity: "Native Ethereum Balance",
+              rawBalance: String(data.ETH?.rawBalance || BigInt(Math.floor(ethBal * 1e18)).toString()),
+            });
+          }
+
+          for (const item of rawTokens) {
+            const info = item.tokenInfo || {};
+            const tokenAddr = (info.address || "").toLowerCase();
+            if (!tokenAddr || tokenAddr === "0x0000000000000000000000000000000000000000") continue;
+
+            const decimals = Number(info.decimals) || 18;
+            const balance = parseTokenBalance(String(item.rawBalance || item.balance || "0"), decimals);
+            if (balance <= 0) continue;
+
+            const priceObj = info.price;
+            const rawPriceUsd = typeof priceObj === "object" && priceObj ? Number(priceObj.rate || 0) : Number(priceObj || 0);
+            const isUnquoted = rawPriceUsd <= 0;
+            const priceUsd = isUnquoted ? 0.000001 : rawPriceUsd;
+            const valueUsd = isUnquoted ? 0.01 : Number((balance * priceUsd).toFixed(2));
+
+            // Strict dust criteria: 0 < valueUsd < maxThresholdUsd
+            if (valueUsd > 0.0001 && valueUsd < maxThresholdUsd && !foundTokensMap.has(tokenAddr)) {
+              const sym = (info.symbol || "UNKNOWN").toUpperCase();
+              const isRh = ROBINHOOD_CRYPTO_TOKENS.some((r) => r.symbol === sym || r.address.toLowerCase() === tokenAddr);
+
+              foundTokensMap.set(tokenAddr, {
+                id: `${sym}-${tokenAddr.slice(2, 8)}`,
+                symbol: sym,
+                name: info.name || sym,
+                address: info.address,
+                decimals,
+                balance,
+                balanceFormatted: formatTokenAmount(balance),
+                priceUsd,
+                valueUsd,
+                chain: "Ethereum",
+                chainId: 1,
+                isRobinhoodListed: isRh,
+                isDust: true,
+                logoUrl:
+                  ROBINHOOD_CRYPTO_TOKENS.find((r) => r.symbol === sym)?.logoUrl ||
+                  "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
+                sourceLiquidity: isRh ? "Uniswap v3 + Robinhood Route" : isUnquoted ? "Unquoted Micro-Dust (< $30)" : "LI.FI Multi-DEX",
+                rawBalance: String(item.rawBalance || "0"),
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Ethplorer real-time fetch notice:", err);
+      }
+    })(),
+  ]);
 
   // 2. Direct Onchain Ethereum JSON-RPC batch eth_call for key Robinhood Crypto tokens
   // Ensures top tokens (WETH, UNI, AAVE, LINK, PEPE, SHIB, CRV) are always checked onchain
