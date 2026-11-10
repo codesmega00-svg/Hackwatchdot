@@ -99,6 +99,13 @@ export interface LiveNetworkStats {
 // Preset wallets known to hold actual real-time onchain ERC-20 dust tokens
 export const PRESET_WALLETS: PresetWallet[] = [
   {
+    label: "Hot Sweeper (0x370A...)",
+    address: "0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF",
+    tag: "High-Volume Sweeper",
+    description: "Multi-chain relayer/sweeper with 1.98M+ transactions and 94 dust tokens",
+    knownDustSummary: "Holds 94 onchain dust tokens under $30 (HEX, BZR, ZIK, etc.) plus 5.85 ETH and $18.2K USDC",
+  },
+  {
     label: "Queried Wallet (0xbb9a...)",
     address: "0xbb9a31FA4875fe2Fc905bb0598A583756DaC80f7",
     tag: "Target Wallet",
