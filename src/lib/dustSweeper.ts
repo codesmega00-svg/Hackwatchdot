@@ -99,6 +99,13 @@ export interface LiveNetworkStats {
 // Preset wallets known to hold actual real-time onchain ERC-20 dust tokens
 export const PRESET_WALLETS: PresetWallet[] = [
   {
+    label: "Queried Wallet (0xbb9a...)",
+    address: "0xbb9a31FA4875fe2Fc905bb0598A583756DaC80f7",
+    tag: "Target Wallet",
+    description: "Active Ethereum wallet with 0.0021 ETH ($4.44) and 6 onchain micro-dust tokens",
+    knownDustSummary: "Holds 0.0021 ETH native gas dust ($4.44 USD) plus CAT, ETHG, PVC, AICC, DAPPS, DOS",
+  },
+  {
     label: "Robinhood Hot Wallet 8",
     address: "0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489",
     tag: "Robinhood Hot Custody",
@@ -363,6 +370,31 @@ export async function fetchWalletDustTokens(
       const data = await res.json();
       const rawTokens = data.tokens || [];
 
+      // Check native ETH balance
+      const ethBal = Number(data.ETH?.balance || 0);
+      const effectiveEthPrice = Number(data.ETH?.price?.rate || ethPrice || 2225);
+      const ethValUsd = Number((ethBal * effectiveEthPrice).toFixed(2));
+      if (ethBal > 0.00001 && ethValUsd < maxThresholdUsd) {
+        foundTokensMap.set("0x0000000000000000000000000000000000000000", {
+          id: `ETH-${cleanAddr.slice(2, 8)}`,
+          symbol: "ETH",
+          name: "Ethereum (Native Dust)",
+          address: "0x0000000000000000000000000000000000000000",
+          decimals: 18,
+          balance: ethBal,
+          balanceFormatted: formatTokenAmount(ethBal),
+          priceUsd: effectiveEthPrice,
+          valueUsd: ethValUsd,
+          chain: "Ethereum",
+          chainId: 1,
+          isRobinhoodListed: true,
+          isDust: true,
+          logoUrl: "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
+          sourceLiquidity: "Native Ethereum Balance",
+          rawBalance: String(data.ETH?.rawBalance || BigInt(Math.floor(ethBal * 1e18)).toString()),
+        });
+      }
+
       for (const item of rawTokens) {
         const info = item.tokenInfo || {};
         const tokenAddr = (info.address || "").toLowerCase();
@@ -373,10 +405,10 @@ export async function fetchWalletDustTokens(
         if (balance <= 0) continue;
 
         const priceObj = info.price;
-        const priceUsd = typeof priceObj === "object" && priceObj ? Number(priceObj.rate || 0) : Number(priceObj || 0);
-        if (priceUsd <= 0) continue;
-
-        const valueUsd = Number((balance * priceUsd).toFixed(2));
+        const rawPriceUsd = typeof priceObj === "object" && priceObj ? Number(priceObj.rate || 0) : Number(priceObj || 0);
+        const isUnquoted = rawPriceUsd <= 0;
+        const priceUsd = isUnquoted ? 0.000001 : rawPriceUsd;
+        const valueUsd = isUnquoted ? 0.01 : Number((balance * priceUsd).toFixed(2));
 
         // Strict dust criteria: 0 < valueUsd < maxThresholdUsd
         if (valueUsd > 0.0001 && valueUsd < maxThresholdUsd) {
@@ -400,7 +432,7 @@ export async function fetchWalletDustTokens(
             logoUrl:
               ROBINHOOD_CRYPTO_TOKENS.find((r) => r.symbol === sym)?.logoUrl ||
               "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
-            sourceLiquidity: isRh ? "Uniswap v3 + Robinhood Route" : "LI.FI Multi-DEX",
+            sourceLiquidity: isRh ? "Uniswap v3 + Robinhood Route" : isUnquoted ? "Unquoted Micro-Dust (< $30)" : "LI.FI Multi-DEX",
             rawBalance: String(item.rawBalance || "0"),
           });
         }
@@ -418,8 +450,8 @@ export async function fetchWalletDustTokens(
       (t) => !foundTokensMap.has(t.address.toLowerCase())
     );
 
-    if (tokensToCheck.length > 0) {
-      const batchPayload = tokensToCheck.map((t, idx) => ({
+    if (tokensToCheck.length > 0 || !foundTokensMap.has("0x0000000000000000000000000000000000000000")) {
+      const batchPayload: any[] = tokensToCheck.map((t, idx) => ({
         jsonrpc: "2.0",
         id: idx + 1,
         method: "eth_call",
@@ -431,6 +463,15 @@ export async function fetchWalletDustTokens(
           "latest",
         ],
       }));
+
+      if (!foundTokensMap.has("0x0000000000000000000000000000000000000000")) {
+        batchPayload.push({
+          jsonrpc: "2.0",
+          id: 9999,
+          method: "eth_getBalance",
+          params: [cleanAddr, "latest"],
+        });
+      }
 
       for (const rpc of PUBLIC_ETHEREUM_RPCS) {
         try {
@@ -449,6 +490,36 @@ export async function fetchWalletDustTokens(
             const rpcData = await rpcRes.json();
             if (Array.isArray(rpcData)) {
               for (const resp of rpcData) {
+                if (resp.id === 9999) {
+                  const ethHex = resp.result;
+                  if (ethHex && ethHex !== "0x" && ethHex !== "0x0") {
+                    const ethWei = BigInt(ethHex);
+                    const ethBal = Number(ethWei) / 1e18;
+                    const ethValUsd = Number((ethBal * ethPrice).toFixed(2));
+                    if (ethBal > 0.00001 && ethValUsd < maxThresholdUsd) {
+                      foundTokensMap.set("0x0000000000000000000000000000000000000000", {
+                        id: `ETH-${cleanAddr.slice(2, 8)}`,
+                        symbol: "ETH",
+                        name: "Ethereum (Native Dust)",
+                        address: "0x0000000000000000000000000000000000000000",
+                        decimals: 18,
+                        balance: ethBal,
+                        balanceFormatted: formatTokenAmount(ethBal),
+                        priceUsd: ethPrice,
+                        valueUsd: ethValUsd,
+                        chain: "Ethereum",
+                        chainId: 1,
+                        isRobinhoodListed: true,
+                        isDust: true,
+                        logoUrl: "https://assets.coingecko.com/coins/images/279/standard/ethereum.png",
+                        sourceLiquidity: "Native Ethereum Balance",
+                        rawBalance: ethWei.toString(),
+                      });
+                    }
+                  }
+                  continue;
+                }
+
                 const token = tokensToCheck[resp.id - 1];
                 if (!token) continue;
 
