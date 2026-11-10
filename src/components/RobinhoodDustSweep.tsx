@@ -392,6 +392,20 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
               </>
             )}
           </button>
+          <button
+            type="button"
+            className={`dust-refresh-icon-btn ${isScanning ? "spinning" : ""}`}
+            onClick={() => handleScan(activeAddress)}
+            disabled={isScanning}
+            title="Refresh Live Onchain Balances"
+            aria-label="Refresh live onchain balances"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v6h-6" />
+              <path d="M1 20v-6h6" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
         </div>
 
         {/* Live Preset Wallets */}
@@ -576,7 +590,56 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           </div>
         </div>
 
-        {tokens.length === 0 && !isScanning ? (
+        {isScanning ? (
+          <div className="dust-scanning-loader">
+            <div className="radar-circle-wrap">
+              <div className="radar-wave wave-1" />
+              <div className="radar-wave wave-2" />
+              <div className="radar-wave wave-3" />
+              <div className="radar-center-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="scanning-title">Scanning Ethereum Mainnet for Dust Balances</h3>
+            <p className="scanning-desc">
+              Querying Ethereum JSON-RPC batch <code>eth_call</code>, native gas, and onchain indexers for{" "}
+              <code>{shortAddr(activeAddress, 8, 6)}</code>...
+            </p>
+            <div className="scanning-progress-steps">
+              <span className="scan-step-pill active">
+                <span className="step-spinner-micro" /> 1. Querying JSON-RPC (balanceOf)
+              </span>
+              <span className="scan-step-pill active">
+                <span className="step-spinner-micro" /> 2. Checking ERC-20 &amp; Native Gas
+              </span>
+              <span className="scan-step-pill active">
+                <span className="step-spinner-micro" /> 3. Filtering Tokens &lt; ${thresholdUsd} USD
+              </span>
+              <span className="scan-step-pill active">
+                <span className="step-spinner-micro" /> 4. Discovering LI.FI Multi-DEX Routes
+              </span>
+            </div>
+            <div className="dust-skeleton-rows">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="dust-skeleton-row">
+                  <div className="sk-cell sk-check" />
+                  <div className="sk-cell sk-avatar" />
+                  <div className="sk-cell sk-info">
+                    <div className="sk-bar sk-title" style={{ width: `${75 + (i % 3) * 25}px` }} />
+                    <div className="sk-bar sk-sub" style={{ width: `${130 + (i % 2) * 35}px` }} />
+                  </div>
+                  <div className="sk-cell sk-right" style={{ flex: 1 }}>
+                    <div className="sk-bar sk-val" style={{ width: "95px", marginLeft: "auto" }} />
+                    <div className="sk-bar sk-sub" style={{ width: "65px", marginLeft: "auto" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : tokens.length === 0 ? (
           <div className="dust-empty-state">
             <div className="empty-icon">🔍</div>
             <h3>No dust balances under ${thresholdUsd} found onchain</h3>

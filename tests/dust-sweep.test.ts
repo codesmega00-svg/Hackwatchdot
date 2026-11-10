@@ -147,7 +147,10 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", (
   it("includes search bar, live network bar, and real preset wallets in UI", () => {
     expect(componentTsx).toContain("dust-address-input");
     expect(componentTsx).toContain("dust-scan-btn");
-    expect(componentTsx).toContain("dust-live-net-bar");
+    expect(componentTsx).toContain("dust-refresh-icon-btn");
+    expect(componentTsx).toContain("dust-scanning-loader");
+    expect(componentTsx).toContain("radar-circle-wrap");
+    expect(componentTsx).toContain("dust-skeleton-rows");
     expect(PRESET_WALLETS.length).toBeGreaterThanOrEqual(3);
     const presetLabels = PRESET_WALLETS.map((p) => p.label);
     expect(presetLabels).toContain("Robinhood Hot Wallet 8");

@@ -7385,6 +7385,32 @@ body.light-theme .calldata-pre {
   cursor: not-allowed;
 }
 
+.dust-refresh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dust-refresh-icon-btn:hover:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--panel-3);
+  transform: translateY(-1px);
+}
+
+.dust-refresh-icon-btn.spinning svg {
+  animation: spin 0.9s linear infinite;
+  color: var(--blue);
+}
+
 .dust-spinner {
   width: 14px;
   height: 14px;
@@ -7930,6 +7956,184 @@ body.light-theme .calldata-pre {
   white-space: nowrap;
 }
 
+/* High-Tech Onchain Scanning Loader */
+.dust-scanning-loader {
+  text-align: center;
+  padding: 40px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.radar-circle-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-center-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 200, 5, 0.2), rgba(103, 169, 255, 0.2));
+  border: 1px solid var(--green);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 0 16px rgba(0, 200, 5, 0.35);
+}
+
+.radar-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 200, 5, 0.6);
+  animation: radarPulse 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+.radar-wave.wave-2 {
+  animation-delay: 0.7s;
+}
+
+.radar-wave.wave-3 {
+  animation-delay: 1.4s;
+}
+
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.scanning-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px 0;
+}
+
+.scanning-desc {
+  font-size: 13px;
+  color: var(--mute);
+  max-width: 540px;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.scanning-desc code {
+  font-family: var(--mono);
+  color: var(--blue);
+  background: var(--panel-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.scanning-progress-steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.scan-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 11.5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-family: var(--mono);
+}
+
+.scan-step-pill.active {
+  border-color: rgba(63, 214, 156, 0.4);
+  color: var(--green);
+  background: rgba(63, 214, 156, 0.08);
+}
+
+.step-spinner-micro {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(63, 214, 156, 0.3);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.dust-skeleton-rows {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dust-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.sk-cell.sk-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--line);
+}
+
+.sk-cell.sk-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--line);
+  flex-shrink: 0;
+}
+
+.sk-cell.sk-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sk-bar {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--line-soft) 25%, var(--line) 50%, var(--line-soft) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.sk-bar.sk-title {
+  height: 14px;
+}
+
+.sk-bar.sk-val {
+  height: 16px;
+}
+
+.sk-bar.sk-sub {
+  height: 10px;
+}
+
 /* Empty State */
 .dust-empty-state {
   text-align: center;
@@ -8355,11 +8559,17 @@ body.light-theme .dust-modal-content {
 
 [data-theme="light"] .dust-address-input,
 [data-theme="light"] .dust-table-filter,
+[data-theme="light"] .dust-refresh-icon-btn,
+[data-theme="light"] .dust-skeleton-row,
+[data-theme="light"] .scan-step-pill,
 [data-theme="light"] .arch-col,
 [data-theme="light"] .receipt-breakdown-card,
 [data-theme="light"] .execution-step-item,
 body.light-theme .dust-address-input,
 body.light-theme .dust-table-filter,
+body.light-theme .dust-refresh-icon-btn,
+body.light-theme .dust-skeleton-row,
+body.light-theme .scan-step-pill,
 body.light-theme .arch-col,
 body.light-theme .receipt-breakdown-card,
 body.light-theme .execution-step-item {
