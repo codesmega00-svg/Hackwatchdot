@@ -7250,6 +7250,118 @@ body.light-theme .calldata-pre {
   border: 1px solid var(--line);
 }
 
+/* Multi-Chain Network Selector */
+.dust-chain-selector-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 18px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.dust-chain-selector-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--dim);
+}
+
+.dust-chain-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dust-chain-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--mute);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dust-chain-btn:hover {
+  background: var(--panel-hover, rgba(255, 255, 255, 0.05));
+  color: var(--text);
+  border-color: var(--blue);
+}
+
+.dust-chain-btn.active {
+  background: linear-gradient(135deg, rgba(0, 200, 5, 0.15), rgba(103, 169, 255, 0.15));
+  border-color: #00c805;
+  color: #00c805;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(0, 200, 5, 0.25);
+}
+
+.chain-btn-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chain-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: rgba(103, 169, 255, 0.1);
+  color: var(--blue);
+  border: 1px solid rgba(103, 169, 255, 0.25);
+}
+
+.chain-badge-pill.rh {
+  background: rgba(0, 200, 5, 0.1);
+  color: #00c805;
+  border-color: rgba(0, 200, 5, 0.3);
+}
+
+.chain-badge-pill.base {
+  background: rgba(0, 82, 255, 0.1);
+  color: #3b82f6;
+  border-color: rgba(0, 82, 255, 0.3);
+}
+
+.chain-badge-pill.arb {
+  background: rgba(40, 160, 240, 0.1);
+  color: #38bdf8;
+  border-color: rgba(40, 160, 240, 0.3);
+}
+
+.chain-badge-pill.pol {
+  background: rgba(130, 71, 229, 0.1);
+  color: #a855f7;
+  border-color: rgba(130, 71, 229, 0.3);
+}
+
+.dust-chain-breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  font-size: 11.5px;
+}
+
 /* Search Panel */
 .dust-search-panel {
   background: var(--panel);

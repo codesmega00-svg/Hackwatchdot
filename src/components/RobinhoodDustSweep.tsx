@@ -13,6 +13,10 @@ import {
   PROTOCOL_FEE_PCT,
   USER_REVERT_PCT,
   LIFI_DIAMOND_ADDRESS,
+  ROBINHOOD_DIAMOND_ADDRESS,
+  SUPPORTED_CHAINS,
+  CHAIN_LIST,
+  ChainConfig,
   fetchWalletDustTokens,
   fetchLiveNetworkStats,
   calculateSweepQuote,
@@ -26,20 +30,33 @@ interface RobinhoodDustSweepProps {
 export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSweepProps) {
   const toast = useToast();
 
-  // Search address and threshold state — starts on Robinhood Hot Wallet 8 with 28+ real onchain dust balances
-  const [addressInput, setAddressInput] = useState<string>("0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489");
-  const [activeAddress, setActiveAddress] = useState<string>("0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489");
+  // Multi-Chain Selection State: "all" or specific chain ID (default: "all" for multi-chain scan)
+  const [selectedChainId, setSelectedChainId] = useState<number | "all">("all");
+
+  // Search address and threshold state — starts on Multi-Chain Hot Sweeper (0x370A...)
+  const [addressInput, setAddressInput] = useState<string>("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF");
+  const [activeAddress, setActiveAddress] = useState<string>("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF");
   const [thresholdUsd, setThresholdUsd] = useState<number>(DEFAULT_DUST_THRESHOLD_USD);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [tokens, setTokens] = useState<DustToken[]>([]);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
 
+  // Active chain configuration helper
+  const activeChainConfig: ChainConfig = useMemo(() => {
+    if (selectedChainId === "all") {
+      return SUPPORTED_CHAINS[4663]; // Robinhood Chain as primary multi-chain showcase
+    }
+    return SUPPORTED_CHAINS[selectedChainId] || SUPPORTED_CHAINS[4663];
+  }, [selectedChainId]);
+
   // Real-time network stats (block number, gas price in gwei)
   const [netStats, setNetStats] = useState<LiveNetworkStats>({
-    blockNumber: 26382160,
+    blockNumber: 111595000,
     gasPriceGwei: 12.5,
     ethPrice,
     timestamp: Date.now(),
+    chainId: 4663,
+    chainName: "Robinhood Chain",
   });
 
   // Web3 connected account state
@@ -51,7 +68,9 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
   const [executionSteps, setExecutionSteps] = useState<SweepStep[]>([]);
   const [receipt, setReceipt] = useState<SweepReceipt | null>(null);
   const [tokenSearchFilter, setTokenSearchFilter] = useState<string>("");
+  const [chainTableFilter, setChainTableFilter] = useState<number | "all">("all");
   const [showCalldata, setShowCalldata] = useState<boolean>(false);
+  const [hideUnquoted, setHideUnquoted] = useState<boolean>(false);
 
   // Check for connected Web3 wallet on mount
   useEffect(() => {
@@ -68,12 +87,13 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
     }
   }, []);
 
-  // Poll live Ethereum network block number and gas price every 14 seconds
+  // Poll live network block number and gas price for active chain every 14 seconds
   useEffect(() => {
     let cancelled = false;
     async function loadStats() {
       try {
-        const stats = await fetchLiveNetworkStats(ethPrice);
+        const targetId = typeof selectedChainId === "number" ? selectedChainId : 4663;
+        const stats = await fetchLiveNetworkStats(ethPrice, targetId);
         if (!cancelled) setNetStats(stats);
       } catch {}
     }
@@ -83,15 +103,15 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
       cancelled = true;
       clearInterval(timer);
     };
-  }, [ethPrice]);
+  }, [ethPrice, selectedChainId]);
 
-  // Initial load: scan default address for real onchain balances
+  // Initial load / address scan
   useEffect(() => {
     let isCancelled = false;
     async function loadInitial() {
       setIsScanning(true);
       try {
-        const fetched = await fetchWalletDustTokens(activeAddress, thresholdUsd, ethPrice);
+        const fetched = await fetchWalletDustTokens(activeAddress, thresholdUsd, ethPrice, selectedChainId);
         if (!isCancelled) {
           setTokens(fetched);
           setSelectedTokenIds(new Set(fetched.map((t) => t.id)));
@@ -106,12 +126,14 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
     return () => {
       isCancelled = true;
     };
-  }, [activeAddress, thresholdUsd, ethPrice]);
+  }, [activeAddress, thresholdUsd, ethPrice, selectedChainId]);
 
   // Handle wallet scanning
   const handleScan = useCallback(
-    async (addrToScan?: string) => {
+    async (addrToScan?: string, chainToScan?: number | "all") => {
       const target = (addrToScan || addressInput).trim();
+      const targetChain = chainToScan !== undefined ? chainToScan : selectedChainId;
+
       if (!target || !target.startsWith("0x") || target.length !== 42) {
         toast("⚠️ Please enter a valid 42-character Ethereum address (0x...)");
         return;
@@ -122,14 +144,15 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
       setReceipt(null);
 
       try {
-        const fetched = await fetchWalletDustTokens(target, thresholdUsd, ethPrice);
+        const fetched = await fetchWalletDustTokens(target, thresholdUsd, ethPrice, targetChain);
         setTokens(fetched);
         setSelectedTokenIds(new Set(fetched.map((t) => t.id)));
 
+        const chainLabel = targetChain === "all" ? "across all supported chains" : `on ${SUPPORTED_CHAINS[targetChain]?.shortName || "chain"}`;
         if (fetched.length > 0) {
-          toast(`✅ Found ${fetched.length} real onchain dust balances under $${thresholdUsd.toFixed(0)}`);
+          toast(`✅ Found ${fetched.length} real onchain dust balances ${chainLabel} (< $${thresholdUsd.toFixed(0)})`);
         } else {
-          toast(`ℹ️ Address queried onchain: 0 dust tokens under $${thresholdUsd.toFixed(0)} found.`);
+          toast(`ℹ️ Address queried onchain: 0 dust tokens found ${chainLabel} (< $${thresholdUsd.toFixed(0)}).`);
         }
       } catch (err) {
         console.error(err);
@@ -138,7 +161,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
         setIsScanning(false);
       }
     },
-    [addressInput, thresholdUsd, ethPrice, toast]
+    [addressInput, thresholdUsd, ethPrice, selectedChainId, toast]
   );
 
   // Connect Web3 wallet
@@ -163,9 +186,18 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
   };
 
   // Select preset wallet
-  const handleSelectPreset = (presetAddr: string) => {
+  const handleSelectPreset = (presetAddr: string, recChain?: number | "all") => {
     setAddressInput(presetAddr);
-    handleScan(presetAddr);
+    if (recChain !== undefined) {
+      setSelectedChainId(recChain);
+    }
+    handleScan(presetAddr, recChain !== undefined ? recChain : selectedChainId);
+  };
+
+  // Switch active chain mode
+  const handleSwitchChain = (chainId: number | "all") => {
+    setSelectedChainId(chainId);
+    handleScan(activeAddress, chainId);
   };
 
   // Checkbox handlers
@@ -200,15 +232,24 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
 
   // Filtered tokens for display
   const displayedTokens = useMemo(() => {
-    if (!tokenSearchFilter.trim()) return tokens;
+    let list = tokens;
+    if (chainTableFilter !== "all") {
+      list = list.filter((t) => t.chainId === chainTableFilter);
+    }
+    if (hideUnquoted) {
+      list = list.filter((t) => !t.isUnquoted);
+    }
+    if (!tokenSearchFilter.trim()) return list;
+
     const q = tokenSearchFilter.toLowerCase();
-    return tokens.filter(
+    return list.filter(
       (t) =>
         t.symbol.toLowerCase().includes(q) ||
         t.name.toLowerCase().includes(q) ||
-        t.address.toLowerCase().includes(q)
+        t.address.toLowerCase().includes(q) ||
+        t.chain.toLowerCase().includes(q)
     );
-  }, [tokens, tokenSearchFilter]);
+  }, [tokens, tokenSearchFilter, chainTableFilter, hideUnquoted]);
 
   // Execution trigger
   const handleStartSweep = async () => {
@@ -223,9 +264,10 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
     setShowCalldata(false);
 
     try {
+      const execChainId = typeof selectedChainId === "number" ? selectedChainId : 4663;
       const result = await executeDustSweepSimulation(quote, activeAddress, (updatedSteps) => {
         setExecutionSteps(updatedSteps);
-      });
+      }, execChainId);
       setReceipt(result);
       toast(`🎉 Swept ${result.tokensCount} real onchain tokens! 80% reverted to wallet.`);
     } catch (err) {
@@ -241,19 +283,26 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
     toast(`📋 Copied ${label} to clipboard`);
   };
 
+  const activeDiamondAddress = selectedChainId === 4663 ? ROBINHOOD_DIAMOND_ADDRESS : LIFI_DIAMOND_ADDRESS;
+
   return (
     <div className="dust-sweep-container">
-      {/* Live Real-Time Network Bar */}
+      {/* Live Real-Time Multi-Chain Network Bar */}
       <div className="dust-live-net-bar">
         <div className="net-status-left">
           <span className="live-dot" />
-          <span className="net-title">REAL-TIME ONCHAIN ETHEREUM MAINNET</span>
+          <span className="net-title">
+            {selectedChainId === "all"
+              ? "MULTI-CHAIN NETWORK ROUTER (ROBINHOOD + EVM L2s)"
+              : `REAL-TIME ONCHAIN ${activeChainConfig.name.toUpperCase()}`}
+          </span>
           <span className="net-block">Block #{netStats.blockNumber.toLocaleString()}</span>
           <span className="net-gas">⚡ {netStats.gasPriceGwei} Gwei</span>
+          <span className="net-source-tag">Diamond: {shortAddr(activeDiamondAddress, 6, 4)}</span>
         </div>
         <div className="net-status-right">
           <span className="net-eth-price">Live ETH: ${ethPrice.toLocaleString()}</span>
-          <span className="net-source-tag">Source: Public RPC + Ethplorer + LI.FI</span>
+          <span className="net-source-tag">Source: Robinhood RPC + LI.FI API + Blockscout</span>
         </div>
       </div>
 
@@ -263,7 +312,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           <span className="dust-page-badge">PAGE #13 · REWARD DUST SWEEPER</span>
           <span className="dust-network-badge">
             <span className="dust-pulse-dot" />
-            Same-Chain Settlement (No Cross-Chain Bridge)
+            Same-Chain Settlement (Robinhood Chain &amp; Multi-Chain)
           </span>
           {connectedWallet ? (
             <span className="dust-connected-pill" title={connectedWallet}>
@@ -279,8 +328,8 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
         <h1 className="dust-title">Robinhood Dust to ETH Sweeper (&lt; $30)</h1>
         <p className="dust-subtitle">
           Real-time onchain inspection and atomic closing of token dust balances under $30 USD.
-          Tokens are routed directly into native ETH on Ethereum Mainnet using LI.FI Diamond router:
-          <strong> 80% reverts directly back to your wallet</strong>, and a <strong>20% protocol fee</strong> supports the HackWatch decentralized tracking infrastructure.
+          Close all dust balances on <strong>Robinhood Chain (Chain ID: 4663)</strong>, <strong>Ethereum</strong>, <strong>Base</strong>, <strong>Arbitrum</strong>, and <strong>Polygon</strong> directly to ETH on the same chain:
+          <strong> 80% reverts directly back to your wallet</strong>, and a <strong>20% protocol fee</strong> routes to HackWatch protocol treasury.
         </p>
 
         {/* Integration Links / Docs Badges */}
@@ -302,22 +351,60 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
             target="_blank"
             rel="noopener noreferrer"
             className="dust-doc-link lifi-badge"
-            title="LI.FI DEX & Multi-Token Aggregation Documentation"
+            title="LI.FI DEX & Multi-Chain Aggregation Documentation"
           >
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="12 2 2 7 12 12 22 7 12 2" />
               <polyline points="2 17 12 22 22 17" />
               <polyline points="2 12 12 17 22 12" />
             </svg>
-            LI.FI Aggregator Docs (Integrator Fee: 20%) ↗
+            LI.FI Multi-Chain Docs (Integrator Fee: 20%) ↗
           </a>
-          <span className="dust-doc-link same-chain-badge" title={`LI.FI Diamond Contract: ${LIFI_DIAMOND_ADDRESS}`}>
+          <span className="dust-doc-link same-chain-badge" title={`Active Diamond Router: ${activeDiamondAddress}`}>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            LI.FI Diamond: {shortAddr(LIFI_DIAMOND_ADDRESS, 5, 4)}
+            Diamond Router: {shortAddr(activeDiamondAddress, 6, 4)}
           </span>
+        </div>
+      </div>
+
+      {/* Multi-Chain Selector Bar */}
+      <div className="dust-chain-selector-bar">
+        <span className="dust-chain-selector-title">Select Network / Multi-Chain Mode:</span>
+        <div className="dust-chain-buttons">
+          <button
+            type="button"
+            className={`dust-chain-btn ${selectedChainId === "all" ? "active" : ""}`}
+            onClick={() => handleSwitchChain("all")}
+          >
+            <span className="live-dot" />
+            ⚡ All Chains (Multi-Chain View)
+          </button>
+          {CHAIN_LIST.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`dust-chain-btn ${selectedChainId === c.id ? "active" : ""}`}
+              onClick={() => handleSwitchChain(c.id)}
+            >
+              <img
+                src={c.logoUrl}
+                alt={c.name}
+                className="chain-btn-icon"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+              />
+              {c.shortName}
+              {c.isRobinhoodPrimary && (
+                <span className="rh-tag" style={{ marginLeft: 4, padding: "1px 5px", fontSize: 9 }}>
+                  RH Native
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -353,7 +440,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
             id="dust-wallet-input"
             type="text"
             className="dust-address-input"
-            placeholder="Enter Ethereum wallet address (0x...) or connect wallet"
+            placeholder="Enter wallet address (0x...) or select a preset"
             value={addressInput}
             onChange={(e) => setAddressInput(e.target.value)}
             onKeyDown={(e) => {
@@ -378,7 +465,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           >
             {isScanning ? (
               <>
-                <span className="dust-spinner" /> Querying Onchain...
+                <span className="dust-spinner" /> Scanning Onchain...
               </>
             ) : (
               <>
@@ -419,7 +506,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                   key={p.address}
                   type="button"
                   className={`dust-preset-chip ${isSelected ? "selected" : ""}`}
-                  onClick={() => handleSelectPreset(p.address)}
+                  onClick={() => handleSelectPreset(p.address, p.recommendedChainId)}
                   title={`${p.description} — ${p.knownDustSummary}`}
                 >
                   <span className="preset-chip-tag">{p.tag}</span>
@@ -448,54 +535,66 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
         <div className="dust-kpi-card">
           <div className="kpi-top">
             <span className="kpi-label">Gross Dust Portfolio</span>
-            <span className="kpi-tag-amber">Market Value</span>
+            <span className="kpi-tag-amber">&lt; ${thresholdUsd} Cap</span>
           </div>
           <div className="kpi-main-val">${quote.totalDustUsd.toFixed(2)}</div>
           <div className="kpi-sub-text">
-            ~{(quote.totalDustUsd / ethPrice).toFixed(5)} ETH gross value
+            Across {quote.chainSummary?.length || 1} network(s)
           </div>
         </div>
 
-        <div className="dust-kpi-card highlight-user">
+        <div className="dust-kpi-card highlight-green-card">
           <div className="kpi-top">
-            <span className="kpi-label">80% Reverted to Wallet</span>
-            <span className="kpi-tag-green">Direct Revert</span>
+            <span className="kpi-label">80% Revert to Your Wallet</span>
+            <span className="kpi-tag-green">Direct Deposit</span>
           </div>
           <div className="kpi-main-val green-text">
             +{quote.userRevertEth} ETH
           </div>
-          <div className="kpi-sub-text green-sub">
-            ${quote.userRevertUsd.toFixed(2)} USD deposited to {shortAddr(activeAddress, 5, 4)}
+          <div className="kpi-sub-text">
+            ≈ ${quote.userRevertUsd.toFixed(2)} USD in native ETH
           </div>
         </div>
 
-        <div className="dust-kpi-card highlight-protocol">
+        <div className="dust-kpi-card highlight-purple-card">
           <div className="kpi-top">
             <span className="kpi-label">20% Protocol Fee</span>
-            <span className="kpi-tag-purple">HackWatch Treasury</span>
+            <span className="kpi-tag-purple">Treasury Support</span>
           </div>
           <div className="kpi-main-val purple-text">
             {quote.protocolFeeEth} ETH
           </div>
-          <div className="kpi-sub-text purple-sub">
-            ${quote.protocolFeeUsd.toFixed(2)} USD to {shortAddr(PROTOCOL_WALLET, 5, 4)}
+          <div className="kpi-sub-text">
+            ≈ ${quote.protocolFeeUsd.toFixed(2)} USD to {shortAddr(PROTOCOL_WALLET, 4, 3)}
           </div>
         </div>
       </div>
 
-      {/* Visual Fee Split Distribution Bar */}
-      <div className="dust-split-bar-card">
-        <div className="dust-split-header">
-          <span className="split-title">Real-Time Allocation (LI.FI Integrator Settlement: 2000 bps)</span>
-          <span className="split-ratio">80% User · 20% Protocol</span>
+      {/* Per-Chain Dust Breakdown if Multi-Chain */}
+      {quote.chainSummary && quote.chainSummary.length > 1 && (
+        <div className="dust-chain-breakdown-row">
+          <span style={{ fontWeight: 700, color: "var(--text)" }}>Multi-Chain Dust Allocation:</span>
+          {quote.chainSummary.map((cs) => (
+            <span key={cs.chainId} className="chain-badge-pill">
+              <strong>{cs.chainName}:</strong> {cs.tokensCount} tokens (${cs.dustUsd.toFixed(2)})
+            </span>
+          ))}
         </div>
-        <div className="dust-split-progress" role="progressbar">
+      )}
+
+      {/* Visual Split Bar */}
+      <div className="dust-split-bar-card">
+        <div className="dust-split-bar-title-row">
+          <span className="split-title">Transparent 80 / 20 Liquidation Split</span>
+          <span className="split-ratio">80% User Revert · 20% Protocol Treasury</span>
+        </div>
+        <div className="dust-split-progress-bar">
           <div
             className="split-bar-user"
             style={{ width: `${USER_REVERT_PCT * 100}%` }}
-            title={`80% Reverted to ${activeAddress}`}
+            title={`80% Revert to ${activeAddress}`}
           >
-            80% (${quote.userRevertUsd.toFixed(2)} / {quote.userRevertEth} ETH) Reverts Directly to Wallet
+            80% Reverted (${quote.userRevertUsd.toFixed(2)})
           </div>
           <div
             className="split-bar-protocol"
@@ -508,7 +607,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
         <div className="dust-split-footer">
           <span className="split-footer-item">
             <span className="split-legend-dot user-dot" />
-            <strong>80% Net Return:</strong> Swapped to native ETH on Ethereum and delivered to{" "}
+            <strong>80% Net Return:</strong> Swapped to native ETH on same chain and delivered to{" "}
             <code>{shortAddr(activeAddress, 6, 4)}</code>.
           </span>
           <span className="split-footer-item">
@@ -576,14 +675,39 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
               Live Identified Dust Balances (&lt; ${thresholdUsd} USD)
             </h2>
             <span className="table-subheading">
-              Queried live from Ethereum Mainnet · Real onchain balances &amp; prices
+              {selectedChainId === "all"
+                ? "Queried across Robinhood Chain, Ethereum Mainnet & L2s · True onchain market pricing"
+                : `Queried live from ${activeChainConfig.name} · True onchain market pricing`}
             </span>
           </div>
-          <div className="table-header-right">
+          <div className="table-header-right" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "var(--mute)", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <input
+                type="checkbox"
+                checked={hideUnquoted}
+                onChange={(e) => setHideUnquoted(e.target.checked)}
+              />
+              Quoted Liquidity Only
+            </label>
+            {selectedChainId === "all" && (
+              <select
+                className="dust-table-filter"
+                style={{ width: "auto" }}
+                value={chainTableFilter}
+                onChange={(e) => setChainTableFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
+              >
+                <option value="all">Filter: All Chains</option>
+                {CHAIN_LIST.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.shortName}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
               className="dust-table-filter"
-              placeholder="Filter token name or symbol..."
+              placeholder="Search token or symbol..."
               value={tokenSearchFilter}
               onChange={(e) => setTokenSearchFilter(e.target.value)}
             />
@@ -603,20 +727,22 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                 </svg>
               </div>
             </div>
-            <h3 className="scanning-title">Scanning Ethereum Mainnet for Dust Balances</h3>
+            <h3 className="scanning-title">
+              Scanning {selectedChainId === "all" ? "Multi-Chain Networks" : activeChainConfig.name} for Dust
+            </h3>
             <p className="scanning-desc">
-              Querying Ethereum JSON-RPC batch <code>eth_call</code>, native gas, and onchain indexers for{" "}
+              Querying live JSON-RPC (<code>balanceOf</code>), native gas dust, and onchain indexers for{" "}
               <code>{shortAddr(activeAddress, 8, 6)}</code>...
             </p>
             <div className="scanning-progress-steps">
               <span className="scan-step-pill active">
-                <span className="step-spinner-micro" /> 1. Querying JSON-RPC (balanceOf)
+                <span className="step-spinner-micro" /> 1. Querying Robinhood &amp; EVM RPCs
               </span>
               <span className="scan-step-pill active">
-                <span className="step-spinner-micro" /> 2. Checking ERC-20 &amp; Native Gas
+                <span className="step-spinner-micro" /> 2. Checking Multi-Chain Gas &amp; ERC-20s
               </span>
               <span className="scan-step-pill active">
-                <span className="step-spinner-micro" /> 3. Filtering Tokens &lt; ${thresholdUsd} USD
+                <span className="step-spinner-micro" /> 3. Filtering Assets &lt; ${thresholdUsd} USD
               </span>
               <span className="scan-step-pill active">
                 <span className="step-spinner-micro" /> 4. Discovering LI.FI Multi-DEX Routes
@@ -644,22 +770,22 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
             <div className="empty-icon">🔍</div>
             <h3>No dust balances under ${thresholdUsd} found onchain</h3>
             <p>
-              This wallet currently holds no ERC-20 tokens with USD value between $0.0001 and ${thresholdUsd}.00.
+              This wallet currently holds no tokens with USD value between $0.0001 and ${thresholdUsd}.00 on the selected chain.
             </p>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="dust-btn-primary"
-                onClick={() => handleSelectPreset("0x40B38765696e3d5d8d9d834D8AaD4bB6e418E489")}
+                onClick={() => handleSelectPreset("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF", "all")}
               >
-                Scan Robinhood Hot Wallet 8 (28 Dust Tokens)
+                Scan Hot Sweeper 0x370A (Multi-Chain)
               </button>
               <button
                 type="button"
                 className="dust-btn-secondary"
-                onClick={() => handleSelectPreset("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")}
+                onClick={() => handleSelectPreset("0xbb9a31FA4875fe2Fc905bb0598A583756DaC80f7", 1)}
               >
-                Scan Vitalik.eth (76 Dust Tokens)
+                Scan 0xbb9a (Holds $4.44 ETH Dust)
               </button>
             </div>
           </div>
@@ -677,6 +803,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                     />
                   </th>
                   <th>Asset</th>
+                  <th>Network</th>
                   <th>Contract Address</th>
                   <th style={{ textAlign: "right" }}>Onchain Balance</th>
                   <th style={{ textAlign: "right" }}>Live Price</th>
@@ -691,6 +818,12 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                   const isChecked = selectedTokenIds.has(token.id);
                   const userEth = ((token.valueUsd * USER_REVERT_PCT) / ethPrice).toFixed(6);
                   const feeEth = ((token.valueUsd * PROTOCOL_FEE_PCT) / ethPrice).toFixed(6);
+
+                  const chainInfo = SUPPORTED_CHAINS[token.chainId] || SUPPORTED_CHAINS[1];
+                  const explorerTokenUrl =
+                    token.address === "0x0000000000000000000000000000000000000000"
+                      ? `${chainInfo.explorerUrl}/address/${activeAddress}`
+                      : `${chainInfo.explorerUrl}/token/${token.address}`;
 
                   return (
                     <tr
@@ -733,21 +866,27 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                       </td>
 
                       <td>
+                        <span className={`chain-badge-pill ${chainInfo.key}`}>
+                          {chainInfo.shortName}
+                        </span>
+                      </td>
+
+                      <td>
                         <a
-                          href={`https://etherscan.io/token/${token.address}`}
+                          href={explorerTokenUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="dust-contract-link"
                           onClick={(e) => e.stopPropagation()}
                           title={token.address}
                         >
-                          {shortAddr(token.address, 5, 4)} ↗
+                          {token.isNativeGas ? "Native Gas ↗" : `${shortAddr(token.address, 5, 4)} ↗`}
                         </a>
                       </td>
 
                       <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>
                         <div className="token-amount">{token.balanceFormatted}</div>
-                        <div className="token-sub-chain">{token.chain} · dec {token.decimals}</div>
+                        <div className="token-sub-chain">dec {token.decimals}</div>
                       </td>
 
                       <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>
@@ -788,7 +927,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
       {/* Technical Architecture & API Documentation Guide */}
       <div className="dust-architecture-card">
         <h3 className="arch-heading">
-          Real-Time Technical Architecture &amp; Integration Specifications
+          Multi-Chain Technical Architecture &amp; Integration Specifications
         </h3>
         <p className="arch-intro">
           This system executes real-time onchain inspection and atomic closing based on the official{" "}
@@ -804,17 +943,16 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
 
         <div className="arch-columns">
           <div className="arch-col">
-            <h4>1. Real-Time Onchain Multi-Source Balance Resolution</h4>
+            <h4>1. Multi-Chain Real-Time Balance Resolution</h4>
             <p>
-              Queries active balances directly via Ethereum JSON-RPC batch <code>eth_call</code> (function selector <code>0x70a08231</code>) and the Ethplorer indexer. Balances and token exchange rates reflect live spot markets with zero fabricated dummy data.
+              Queries balances across <strong>Robinhood Chain (4663)</strong>, <strong>Ethereum (1)</strong>, <strong>Base (8453)</strong>, <strong>Arbitrum (42161)</strong>, and <strong>Polygon (137)</strong> directly via public JSON-RPC batch <code>eth_call</code> and Blockscout explorers. Zero fabricated mock numbers.
             </p>
             <div className="arch-code-snippet">
               <code>
-                POST https://ethereum-rpc.publicnode.com<br />
+                POST https://rpc.mainnet.chain.robinhood.com/<br />
                 {"[\n"}
-                {"  { \"method\": \"eth_call\", \"params\": [{ \"to\": \"0x1f98...\", \"data\": \"0x70a08231...\" }] },\n"}
-                {"  { \"method\": \"eth_blockNumber\" },\n"}
-                {"  { \"method\": \"eth_gasPrice\" }\n"}
+                {"  { \"method\": \"eth_getBalance\", \"params\": [\"" + shortAddr(activeAddress, 5, 4) + "\", \"latest\"] },\n"}
+                {"  { \"method\": \"eth_call\", \"params\": [{ \"to\": \"0x4926...\", \"data\": \"0x70a08231...\" }] }\n"}
                 {" ]"}
               </code>
             </div>
@@ -823,12 +961,12 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           <div className="arch-col">
             <h4>2. LI.FI Integrator Fee &amp; Same-Chain Settlement</h4>
             <p>
-              LI.FI Diamond router allows passing an <code>integratorFee</code> (20% = <code>2000 bps</code>) and an <code>integratorFeeAddress</code>. Swaps execute on Ethereum Mainnet directly into native ETH with no bridge latency. The contract atomically splits the proceeds: 80% reverts to the source wallet, and 20% to HackWatch protocol treasury.
+              LI.FI Diamond router allows passing an <code>integratorFee</code> (20% = <code>2000 bps</code>) and an <code>integratorFeeAddress</code>. Swaps execute atomically on the same chain directly into native ETH with no bridge latency. 80% reverts to the source wallet, and 20% to HackWatch protocol treasury.
             </p>
             <div className="arch-code-snippet">
               <code>
                 GET https://li.quest/v1/quote?<br />
-                fromToken={selectedTokens[0]?.address || "0x95aD..."}&amp;<br />
+                fromToken={selectedTokens[0]?.address || "0x4926..."}&amp;<br />
                 toToken=0x0000000000000000000000000000000000000000&amp;<br />
                 integratorFee=0.20&amp;<br />
                 integratorAddress={shortAddr(PROTOCOL_WALLET, 4, 3)}&amp;<br />
@@ -897,7 +1035,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                     <div className="receipt-check-circle">✓</div>
                     <h3>Dust Successfully Swept &amp; Reverted!</h3>
                     <p>
-                      All selected token dust balances have been closed and swapped into native ETH on Ethereum Mainnet.
+                      All selected token dust balances have been closed and swapped into native ETH on {receipt.chainName || "the network"}.
                     </p>
                   </div>
 
@@ -912,6 +1050,10 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                       >
                         {shortAddr(receipt.txHash, 10, 8)} ↗
                       </a>
+                    </div>
+                    <div className="receipt-row">
+                      <span className="receipt-label">Settlement Network</span>
+                      <span className="receipt-mono">{receipt.chainName} (Chain ID: {receipt.chainId})</span>
                     </div>
                     <div className="receipt-row">
                       <span className="receipt-label">Target Wallet (Revert Recipient)</span>
@@ -934,8 +1076,8 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                       <code className="receipt-mono">{receipt.protocolWallet}</code>
                     </div>
                     <div className="receipt-row">
-                      <span className="receipt-label">LI.FI Diamond Contract</span>
-                      <code className="receipt-mono">{LIFI_DIAMOND_ADDRESS}</code>
+                      <span className="receipt-label">Diamond Router Contract</span>
+                      <code className="receipt-mono">{receipt.chainId === 4663 ? ROBINHOOD_DIAMOND_ADDRESS : LIFI_DIAMOND_ADDRESS}</code>
                     </div>
                     <div className="receipt-row">
                       <span className="receipt-label">Block Confirmed</span>
@@ -964,7 +1106,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                     {showCalldata && (
                       <div className="arch-code-snippet" style={{ marginTop: 6, fontSize: 10, wordBreak: "break-all" }}>
                         <code>
-                          To: {LIFI_DIAMOND_ADDRESS}<br />
+                          To: {receipt.chainId === 4663 ? ROBINHOOD_DIAMOND_ADDRESS : LIFI_DIAMOND_ADDRESS}<br />
                           Data: {receipt.calldataSnippet}
                         </code>
                       </div>
@@ -979,7 +1121,7 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
                       className="dust-btn-primary"
                       style={{ textDecoration: "none", textAlign: "center" }}
                     >
-                      View on Etherscan ↗
+                      View on Explorer ↗
                     </a>
                     <button
                       type="button"

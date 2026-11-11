@@ -7,14 +7,18 @@ import {
   DEFAULT_DUST_THRESHOLD_USD,
   PROTOCOL_WALLET,
   LIFI_DIAMOND_ADDRESS,
+  ROBINHOOD_DIAMOND_ADDRESS,
+  SUPPORTED_CHAINS,
+  CHAIN_LIST,
   PRESET_WALLETS,
   ROBINHOOD_CRYPTO_TOKENS,
+  ROBINHOOD_CHAIN_TOKENS,
   calculateSweepQuote,
   fetchWalletDustTokens,
   DustToken,
 } from "../src/lib/dustSweeper";
 
-describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", () => {
+describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Multi-Chain Integration", () => {
   const appPath = path.resolve(__dirname, "../src/App.tsx");
   const appTsx = fs.readFileSync(appPath, "utf-8");
   const componentPath = path.resolve(__dirname, "../src/components/RobinhoodDustSweep.tsx");
@@ -31,18 +35,42 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", (
     expect(DEFAULT_DUST_THRESHOLD_USD).toBe(30.0);
     expect(PROTOCOL_WALLET.toLowerCase()).toBe("0x24fe2677f951493ee42550aa05c55c713de5c556");
     expect(LIFI_DIAMOND_ADDRESS.toLowerCase()).toBe("0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae");
+    expect(ROBINHOOD_DIAMOND_ADDRESS.toLowerCase()).toBe("0xb477751b76cf82d00a686a1232f5fcd772414af3");
   });
 
-  it("includes Robinhood-listed tokens in catalog", () => {
-    const symbols = ROBINHOOD_CRYPTO_TOKENS.map((t) => t.symbol);
-    expect(symbols).toContain("PEPE");
-    expect(symbols).toContain("SHIB");
-    expect(symbols).toContain("UNI");
-    expect(symbols).toContain("LINK");
-    expect(symbols).toContain("AAVE");
-    expect(symbols).toContain("CRV");
-    expect(symbols).toContain("POL");
-    expect(symbols).toContain("ARB");
+  it("configures Robinhood Chain (4663) and all supported multi-chain networks", () => {
+    expect(SUPPORTED_CHAINS[4663]).toBeDefined();
+    expect(SUPPORTED_CHAINS[4663].name).toBe("Robinhood Chain");
+    expect(SUPPORTED_CHAINS[4663].nativeSymbol).toBe("ETH");
+    expect(SUPPORTED_CHAINS[4663].diamondAddress).toBe(ROBINHOOD_DIAMOND_ADDRESS);
+    expect(SUPPORTED_CHAINS[4663].rpcUrls[0]).toContain("rpc.mainnet.chain.robinhood.com");
+
+    expect(SUPPORTED_CHAINS[1]).toBeDefined(); // Ethereum Mainnet
+    expect(SUPPORTED_CHAINS[8453]).toBeDefined(); // Base
+    expect(SUPPORTED_CHAINS[42161]).toBeDefined(); // Arbitrum One
+    expect(SUPPORTED_CHAINS[137]).toBeDefined(); // Polygon
+    expect(SUPPORTED_CHAINS[10]).toBeDefined(); // OP Mainnet
+
+    expect(CHAIN_LIST.length).toBe(6);
+    expect(CHAIN_LIST[0].id).toBe(4663); // Robinhood Chain first
+  });
+
+  it("includes Robinhood Chain listed tokens and Ethereum listed tokens in catalog", () => {
+    const rhSymbols = ROBINHOOD_CHAIN_TOKENS.map((t) => t.symbol);
+    expect(rhSymbols).toContain("LINK");
+    expect(rhSymbols).toContain("cbBTC");
+    expect(rhSymbols).toContain("USDe");
+    expect(rhSymbols).toContain("USDG");
+    expect(rhSymbols).toContain("LIT");
+    expect(rhSymbols).toContain("ENA");
+
+    const ethSymbols = ROBINHOOD_CRYPTO_TOKENS.map((t) => t.symbol);
+    expect(ethSymbols).toContain("PEPE");
+    expect(ethSymbols).toContain("SHIB");
+    expect(ethSymbols).toContain("UNI");
+    expect(ethSymbols).toContain("LINK");
+    expect(ethSymbols).toContain("AAVE");
+    expect(ethSymbols).toContain("CRV");
   });
 
   it("returns empty array for invalid or non-hex address without throwing", async () => {
@@ -52,28 +80,28 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", (
     expect(emptyResult2).toEqual([]);
   });
 
-  it("calculates exact 80/20 fee split and ETH conversion in calculateSweepQuote", () => {
+  it("calculates exact 80/20 fee split and per-chain summaries in calculateSweepQuote", () => {
     const sampleTokens: DustToken[] = [
       {
-        id: "PEPE-1",
-        symbol: "PEPE",
-        name: "Pepe",
-        address: "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+        id: "LINK-4663-1",
+        symbol: "LINK",
+        name: "ChainLink Token",
+        address: "0x492641F648a4986844848E0beFE66D14817bCE34",
         decimals: 18,
-        balance: 1000000,
-        balanceFormatted: "1.00M",
-        priceUsd: 0.0000094,
-        valueUsd: 9.40, // < $30
-        chain: "Ethereum",
-        chainId: 1,
+        balance: 1.0,
+        balanceFormatted: "1.0000",
+        priceUsd: 11.20,
+        valueUsd: 11.20, // < $30
+        chain: "Robinhood",
+        chainId: 4663,
         isRobinhoodListed: true,
         isDust: true,
         logoUrl: "",
-        sourceLiquidity: "Uniswap v3",
-        rawBalance: "1000000000000000000000000",
+        sourceLiquidity: "Robinhood LI.FI Pool",
+        rawBalance: "1000000000000000000",
       },
       {
-        id: "UNI-1",
+        id: "UNI-1-1",
         symbol: "UNI",
         name: "Uniswap",
         address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
@@ -91,7 +119,7 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", (
         rawBalance: "2000000000000000000",
       },
       {
-        id: "CRV-1",
+        id: "CRV-1-1",
         symbol: "CRV",
         name: "Curve DAO",
         address: "0xD533a949740bb3306d119CC777fa900bA034cd52",
@@ -113,19 +141,24 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", (
     const ethPrice = 2500;
     const quote = calculateSweepQuote(sampleTokens, ethPrice);
 
-    // Total = 9.40 + 15.00 + 2.80 = 27.20
-    expect(quote.totalDustUsd).toBe(27.20);
+    // Total = 11.20 + 15.00 + 2.80 = 29.00
+    expect(quote.totalDustUsd).toBe(29.00);
 
-    // 20% protocol fee = 27.20 * 0.20 = 5.44
-    expect(quote.protocolFeeUsd).toBe(5.44);
-    expect(quote.protocolFeeEth).toBeCloseTo(5.44 / 2500, 5);
+    // 20% protocol fee = 29.00 * 0.20 = 5.80
+    expect(quote.protocolFeeUsd).toBe(5.80);
+    expect(quote.protocolFeeEth).toBeCloseTo(5.80 / 2500, 5);
 
-    // 80% user revert = 27.20 * 0.80 = 21.76
-    expect(quote.userRevertUsd).toBe(21.76);
-    expect(quote.userRevertEth).toBeCloseTo(21.76 / 2500, 5);
+    // 80% user revert = 29.00 * 0.80 = 23.20
+    expect(quote.userRevertUsd).toBe(23.20);
+    expect(quote.userRevertEth).toBeCloseTo(23.20 / 2500, 5);
 
-    // Sum matches exactly
-    expect(quote.userRevertUsd + quote.protocolFeeUsd).toBeCloseTo(quote.totalDustUsd, 2);
+    // Multi-chain summary grouping
+    expect(quote.chainSummary).toBeDefined();
+    expect(quote.chainSummary?.length).toBe(2);
+    const rhSummary = quote.chainSummary?.find((c) => c.chainId === 4663);
+    expect(rhSummary?.dustUsd).toBe(11.20);
+    const ethSummary = quote.chainSummary?.find((c) => c.chainId === 1);
+    expect(ethSummary?.dustUsd).toBe(17.80);
   });
 
   it("configures Page #13 'dust' tab in App.tsx navigation and document titles", () => {
@@ -139,20 +172,22 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Integration", (
     expect(componentTsx).toContain("https://docs.robinhood.com/crypto/trading/");
     expect(componentTsx).toContain("https://docs.li.fi/introduction/introduction");
     expect(componentTsx).toContain("PAGE #13 · REWARD DUST SWEEPER");
-    expect(componentTsx).toContain("80% Reverted to Wallet");
-    expect(componentTsx).toContain("20% Protocol Fee");
+    expect(componentTsx).toContain("80% reverts directly back to your wallet");
+    expect(componentTsx).toContain("20% protocol fee");
     expect(componentTsx).toContain("Same-Chain");
   });
 
-  it("includes search bar, live network bar, and real preset wallets in UI", () => {
+  it("includes multi-chain selector, search bar, and real preset wallets in UI", () => {
+    expect(componentTsx).toContain("dust-chain-selector-bar");
+    expect(componentTsx).toContain("dust-chain-btn");
     expect(componentTsx).toContain("dust-address-input");
     expect(componentTsx).toContain("dust-scan-btn");
     expect(componentTsx).toContain("dust-refresh-icon-btn");
     expect(componentTsx).toContain("dust-scanning-loader");
-    expect(componentTsx).toContain("radar-circle-wrap");
-    expect(componentTsx).toContain("dust-skeleton-rows");
     expect(PRESET_WALLETS.length).toBeGreaterThanOrEqual(3);
     const presetLabels = PRESET_WALLETS.map((p) => p.label);
+    expect(presetLabels).toContain("Hot Sweeper (0x370A...)");
+    expect(presetLabels).toContain("Queried Wallet (0xbb9a...)");
     expect(presetLabels).toContain("Robinhood Hot Wallet 8");
     expect(presetLabels).toContain("Vitalik Buterin (vitalik.eth)");
   });
