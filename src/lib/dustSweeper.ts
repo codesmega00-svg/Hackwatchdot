@@ -239,8 +239,26 @@ export interface LiveNetworkStats {
   chainName?: string;
 }
 
+export interface NativeBalanceInfo {
+  chain: string;
+  chainId: number;
+  chainLogo?: string;
+  balance: number;
+  balanceFormatted: string;
+  priceUsd: number;
+  valueUsd: number;
+}
+
 // Preset wallets known to hold actual real-time onchain ERC-20 dust tokens
 export const PRESET_WALLETS: PresetWallet[] = [
+  {
+    label: "RH Active Bot (0x0ce7...)",
+    address: "0x0ce70d8E509DC019f51dE4cCc1026351aDc4Ca31",
+    tag: "Robinhood Native",
+    description: "Active high-frequency trader on Robinhood Chain (4,777 txs) with ~0.18-0.24 ETH ($370-$490 USD)",
+    knownDustSummary: "Holds native ETH on Robinhood Chain (Chain ID: 4663) across 4,777 transactions",
+    recommendedChainId: 4663,
+  },
   {
     label: "Hot Sweeper (0x370A...)",
     address: "0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF",
@@ -649,6 +667,69 @@ export async function fetchLiveNetworkStats(
     chainId: chain.id,
     chainName: chain.name,
   };
+}
+
+// Check native gas balances across all supported chains in real time
+export async function fetchWalletNativeBalances(
+  address: string,
+  ethPrice: number = 2225
+): Promise<NativeBalanceInfo[]> {
+  const cleanAddr = address.trim();
+  if (!cleanAddr || !cleanAddr.startsWith("0x") || cleanAddr.length !== 42) return [];
+
+  const results: NativeBalanceInfo[] = [];
+  const checkChains = [
+    SUPPORTED_CHAINS[4663], // Robinhood Chain
+    SUPPORTED_CHAINS[1],    // Ethereum
+    SUPPORTED_CHAINS[8453], // Base
+    SUPPORTED_CHAINS[42161],// Arbitrum
+    SUPPORTED_CHAINS[137],  // Polygon
+  ];
+
+  await Promise.allSettled(
+    checkChains.map(async (chain) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4500);
+        const res = await fetch(chain.rpcUrls[0], {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "eth_getBalance",
+            params: [cleanAddr, "latest"],
+          }),
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const d = await res.json();
+          if (d.result && d.result !== "0x" && d.result !== "0x0") {
+            const wei = BigInt(d.result);
+            if (wei > 0n) {
+              const bal = Number(wei) / 1e18;
+              const unitPrice = chain.nativeSymbol === "POL" ? 0.38 : ethPrice;
+              const valUsd = Number((bal * unitPrice).toFixed(2));
+              if (bal > 0.00001) {
+                results.push({
+                  chain: chain.shortName,
+                  chainId: chain.id,
+                  chainLogo: chain.logoUrl,
+                  balance: bal,
+                  balanceFormatted: formatTokenAmount(bal),
+                  priceUsd: unitPrice,
+                  valueUsd: valUsd,
+                });
+              }
+            }
+          }
+        }
+      } catch {}
+    })
+  );
+
+  return results.sort((a, b) => b.valueUsd - a.valueUsd);
 }
 
 // Single-chain token balance scanner via public RPC

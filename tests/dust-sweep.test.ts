@@ -186,6 +186,7 @@ describe("Robinhood Dust to ETH Sweeper (Page #13) — Real-Time Multi-Chain Int
     expect(componentTsx).toContain("dust-scanning-loader");
     expect(PRESET_WALLETS.length).toBeGreaterThanOrEqual(3);
     const presetLabels = PRESET_WALLETS.map((p) => p.label);
+    expect(presetLabels).toContain("RH Active Bot (0x0ce7...)");
     expect(presetLabels).toContain("Hot Sweeper (0x370A...)");
     expect(presetLabels).toContain("Queried Wallet (0xbb9a...)");
     expect(presetLabels).toContain("Robinhood Hot Wallet 8");

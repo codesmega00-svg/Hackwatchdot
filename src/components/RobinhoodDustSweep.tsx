@@ -17,8 +17,10 @@ import {
   SUPPORTED_CHAINS,
   CHAIN_LIST,
   ChainConfig,
+  NativeBalanceInfo,
   fetchWalletDustTokens,
   fetchLiveNetworkStats,
+  fetchWalletNativeBalances,
   calculateSweepQuote,
   executeDustSweepSimulation,
 } from "../lib/dustSweeper";
@@ -33,12 +35,13 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
   // Multi-Chain Selection State: "all" or specific chain ID (default: "all" for multi-chain scan)
   const [selectedChainId, setSelectedChainId] = useState<number | "all">("all");
 
-  // Search address and threshold state — starts on Multi-Chain Hot Sweeper (0x370A...)
-  const [addressInput, setAddressInput] = useState<string>("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF");
-  const [activeAddress, setActiveAddress] = useState<string>("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF");
+  // Search address and threshold state — default on Robinhood Active Trader (0x0ce7...)
+  const [addressInput, setAddressInput] = useState<string>("0x0ce70d8E509DC019f51dE4cCc1026351aDc4Ca31");
+  const [activeAddress, setActiveAddress] = useState<string>("0x0ce70d8E509DC019f51dE4cCc1026351aDc4Ca31");
   const [thresholdUsd, setThresholdUsd] = useState<number>(DEFAULT_DUST_THRESHOLD_USD);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [tokens, setTokens] = useState<DustToken[]>([]);
+  const [detectedNatives, setDetectedNatives] = useState<NativeBalanceInfo[]>([]);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
 
   // Active chain configuration helper
@@ -111,10 +114,14 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
     async function loadInitial() {
       setIsScanning(true);
       try {
-        const fetched = await fetchWalletDustTokens(activeAddress, thresholdUsd, ethPrice, selectedChainId);
+        const [fetchedTokens, fetchedNatives] = await Promise.all([
+          fetchWalletDustTokens(activeAddress, thresholdUsd, ethPrice, selectedChainId),
+          fetchWalletNativeBalances(activeAddress, ethPrice),
+        ]);
         if (!isCancelled) {
-          setTokens(fetched);
-          setSelectedTokenIds(new Set(fetched.map((t) => t.id)));
+          setTokens(fetchedTokens);
+          setDetectedNatives(fetchedNatives);
+          setSelectedTokenIds(new Set(fetchedTokens.map((t) => t.id)));
         }
       } catch (err) {
         console.error("Dust scan error:", err);
@@ -130,9 +137,10 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
 
   // Handle wallet scanning
   const handleScan = useCallback(
-    async (addrToScan?: string, chainToScan?: number | "all") => {
+    async (addrToScan?: string, chainToScan?: number | "all", customThreshold?: number) => {
       const target = (addrToScan || addressInput).trim();
       const targetChain = chainToScan !== undefined ? chainToScan : selectedChainId;
+      const targetThreshold = customThreshold !== undefined ? customThreshold : thresholdUsd;
 
       if (!target || !target.startsWith("0x") || target.length !== 42) {
         toast("⚠️ Please enter a valid 42-character Ethereum address (0x...)");
@@ -144,15 +152,21 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
       setReceipt(null);
 
       try {
-        const fetched = await fetchWalletDustTokens(target, thresholdUsd, ethPrice, targetChain);
-        setTokens(fetched);
-        setSelectedTokenIds(new Set(fetched.map((t) => t.id)));
+        const [fetchedTokens, fetchedNatives] = await Promise.all([
+          fetchWalletDustTokens(target, targetThreshold, ethPrice, targetChain),
+          fetchWalletNativeBalances(target, ethPrice),
+        ]);
+        setTokens(fetchedTokens);
+        setDetectedNatives(fetchedNatives);
+        setSelectedTokenIds(new Set(fetchedTokens.map((t) => t.id)));
 
         const chainLabel = targetChain === "all" ? "across all supported chains" : `on ${SUPPORTED_CHAINS[targetChain]?.shortName || "chain"}`;
-        if (fetched.length > 0) {
-          toast(`✅ Found ${fetched.length} real onchain dust balances ${chainLabel} (< $${thresholdUsd.toFixed(0)})`);
+        if (fetchedTokens.length > 0) {
+          toast(`✅ Found ${fetchedTokens.length} real onchain dust balances ${chainLabel} (< $${targetThreshold.toFixed(0)})`);
+        } else if (fetchedNatives.length > 0) {
+          toast(`ℹ️ Found ${fetchedNatives.length} active network balance(s) exceeding < $${targetThreshold.toFixed(0)} filter.`);
         } else {
-          toast(`ℹ️ Address queried onchain: 0 dust tokens found ${chainLabel} (< $${thresholdUsd.toFixed(0)}).`);
+          toast(`ℹ️ Address queried onchain: 0 tokens found ${chainLabel}.`);
         }
       } catch (err) {
         console.error(err);
@@ -416,12 +430,15 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           </label>
           <div className="dust-threshold-selector">
             <span className="dust-threshold-label">Dust Max Limit:</span>
-            {[15, 30, 50].map((val) => (
+            {[15, 30, 50, 100, 500, 1000].map((val) => (
               <button
                 key={val}
                 type="button"
                 className={`dust-threshold-pill ${thresholdUsd === val ? "active" : ""}`}
-                onClick={() => setThresholdUsd(val)}
+                onClick={() => {
+                  setThresholdUsd(val);
+                  handleScan(activeAddress, selectedChainId, val);
+                }}
               >
                 &lt; ${val} {val === 30 ? "(Standard)" : ""}
               </button>
@@ -714,6 +731,33 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           </div>
         </div>
 
+        {/* Protected Assets Bar if any asset exceeds threshold */}
+        {detectedNatives.filter((n) => n.valueUsd >= thresholdUsd).length > 0 && (
+          <div className="dust-protected-assets-bar">
+            <span>🛡️ <strong>Onchain Assets Protected From Dust Sweep:</strong></span>
+            {detectedNatives
+              .filter((n) => n.valueUsd >= thresholdUsd)
+              .map((n) => (
+                <span key={n.chainId} className="chain-badge-pill" style={{ background: "rgba(255, 255, 255, 0.05)", color: "var(--text)" }}>
+                  {n.chain}: {n.balanceFormatted} {n.chainId === 137 ? "POL" : "ETH"} (${n.valueUsd.toFixed(2)})
+                </span>
+              ))}
+            <button
+              type="button"
+              className="dust-btn-secondary"
+              style={{ fontSize: 11, padding: "2px 8px", marginLeft: "auto" }}
+              onClick={() => {
+                const highest = Math.max(...detectedNatives.map((n) => n.valueUsd));
+                const nextLimit = Math.max(500, Math.ceil(highest * 1.15));
+                setThresholdUsd(nextLimit);
+                handleScan(activeAddress, selectedChainId, nextLimit);
+              }}
+            >
+              Raise Limit to Include &amp; Sweep →
+            </button>
+          </div>
+        )}
+
         {isScanning ? (
           <div className="dust-scanning-loader">
             <div className="radar-circle-wrap">
@@ -767,27 +811,74 @@ export default function RobinhoodDustSweep({ ethPrice = 2225 }: RobinhoodDustSwe
           </div>
         ) : tokens.length === 0 ? (
           <div className="dust-empty-state">
-            <div className="empty-icon">🔍</div>
-            <h3>No dust balances under ${thresholdUsd} found onchain</h3>
-            <p>
-              This wallet currently holds no tokens with USD value between $0.0001 and ${thresholdUsd}.00 on the selected chain.
-            </p>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="dust-btn-primary"
-                onClick={() => handleSelectPreset("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF", "all")}
-              >
-                Scan Hot Sweeper 0x370A (Multi-Chain)
-              </button>
-              <button
-                type="button"
-                className="dust-btn-secondary"
-                onClick={() => handleSelectPreset("0xbb9a31FA4875fe2Fc905bb0598A583756DaC80f7", 1)}
-              >
-                Scan 0xbb9a (Holds $4.44 ETH Dust)
-              </button>
-            </div>
+            {detectedNatives.length > 0 ? (
+              <div className="dust-detected-portfolio-card">
+                <div className="detected-top-badge">
+                  <span className="live-dot" />
+                  <span>Real Onchain Balances Detected</span>
+                </div>
+                <h3>Active Balances Found (Exceeds &lt; ${thresholdUsd} Dust Limit)</h3>
+                <p>
+                  This address holds verified onchain assets that currently exceed your <strong>&lt; ${thresholdUsd}.00</strong> dust liquidation threshold:
+                </p>
+                <div className="detected-assets-list">
+                  {detectedNatives.map((n) => (
+                    <div key={n.chainId} className="detected-asset-row">
+                      <div className="asset-left">
+                        <img src={n.chainLogo} alt={n.chain} className="chain-btn-icon" />
+                        <div>
+                          <strong>{n.chain} Native: {n.balanceFormatted} {n.chainId === 137 ? "POL" : "ETH"}</strong>
+                          <div style={{ fontSize: 11, color: "var(--green)" }}>≈ ${n.valueUsd.toFixed(2)} USD</div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="dust-btn-primary"
+                        style={{ padding: "6px 14px", fontSize: 12 }}
+                        onClick={() => {
+                          const newLimit = Math.max(500, Math.ceil(n.valueUsd * 1.15));
+                          setThresholdUsd(newLimit);
+                          handleScan(activeAddress, n.chainId, newLimit);
+                        }}
+                      >
+                        Adjust Threshold to &lt; ${Math.max(500, Math.ceil(n.valueUsd * 1.15))} &amp; Sweep →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="empty-icon">🔍</div>
+                <h3>No dust balances under ${thresholdUsd} found onchain</h3>
+                <p>
+                  This wallet currently holds no tokens with USD value between $0.0001 and ${thresholdUsd}.00 on the selected chain.
+                </p>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="dust-btn-primary"
+                    onClick={() => handleSelectPreset("0x0ce70d8E509DC019f51dE4cCc1026351aDc4Ca31", 4663)}
+                  >
+                    Scan RH Bot 0x0ce7 (Robinhood Chain)
+                  </button>
+                  <button
+                    type="button"
+                    className="dust-btn-secondary"
+                    onClick={() => handleSelectPreset("0x370A7E2d300c14D79d4A7ee07aACA46c4B3012cF", "all")}
+                  >
+                    Scan Hot Sweeper 0x370A (Multi-Chain)
+                  </button>
+                  <button
+                    type="button"
+                    className="dust-btn-secondary"
+                    onClick={() => handleSelectPreset("0xbb9a31FA4875fe2Fc905bb0598A583756DaC80f7", 1)}
+                  >
+                    Scan 0xbb9a (Holds $4.44 ETH Dust)
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="dust-table-responsive">
